@@ -13,7 +13,6 @@ class Name(object):
 
     def __init__(self, exceptions, suffixes):
         """
-
         :param exceptions: list(Rule):
         :param suffixes: list(Rule)
         """

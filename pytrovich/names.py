@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from pytrovich.enums import NamePart
+from pytrovich.enums import NamePart, Gender
 import json
 
 class PetrovichDeclinationMaker(object):
@@ -12,16 +12,16 @@ class PetrovichDeclinationMaker(object):
 
     self._root_rules_bean = None
 
-    self._male = new GenderCurryedMaker(Gender.MALE)
-    self._female = new GenderCurryedMaker(Gender.FEMALE)
-    self._androgynous = new GenderCurryedMaker(Gender.ANDROGYNOUS)
+    self._male =  GenderCurryedMaker(Gender.MALE)
+    self._female =  GenderCurryedMaker(Gender.FEMALE)
+    self._androgynous =  GenderCurryedMaker(Gender.ANDROGYNOUS)
 
 
     def __init__(self, path_to_rules_file):
-        data = open(path_to_rules_file, "r+").read()
-        deserialize()
-        _root_rules_bean = JSON.std.beanFrom(RootBean.class, data);
-    }
+        pass
+        # data = open(path_to_rules_file, "r+").read()
+        # deserialize()
+        # _root_rules_bean = JSON.std.beanFrom(RootBean.class, data);
 
     class __GenderCurryedMaker(object):
 
@@ -44,19 +44,19 @@ class PetrovichDeclinationMaker(object):
             self.namePart = namePart
 
         def to_genitive(self, name):
-            return make(self.namePart, self.gender, Case.GENITIVE, name)
+            return self.make(self.namePart, self.gender, Case.GENITIVE, name)
 
         def to_accusative(self, name):
-            return make(self.namePart, self.gender, Case.ACCUSATIVE, name)
+            return self.make(self.namePart, self.gender, Case.ACCUSATIVE, name)
 
         def to_dative(self, name):
-            return make(self.namePart, self.gender, Case.DATIVE, name)
+            return self.make(self.namePart, self.gender, Case.DATIVE, name)
 
         def to_prepositional(self, name):
-            return make(self.namePart, self.gender, Case.PREPOSITIONAL, name)
+            return self.make(self.namePart, self.gender, Case.PREPOSITIONAL, name)
 
         def to_instrumental(self, name):
-            return make(self.namePart, self.gender, Case.INSTRUMENTAL, name)
+            return self.make(self.namePart, self.gender, Case.INSTRUMENTAL, name)
 
     def make(self, name_part, gender, case_to_use, original_name):
 
