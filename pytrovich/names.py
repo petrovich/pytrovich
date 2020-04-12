@@ -1,62 +1,69 @@
 # -*- coding: utf-8 -*-
-
-from pytrovich.enums import NamePart, Gender
+from pytrovich import rules_data
+from pytrovich.enums import NamePart, Gender, Case
 import json
+
+from pytrovich.models import Root
+
 
 class PetrovichDeclinationMaker(object):
 
+    DEFAULT_PATH_TO_RULES_FILE = "src/main/resources/rules.json"
+    MODS_KEEP_IT_ALL_SYMBOL = "."
+    MODS_REMOVE_LETTER_SYMBOL = "-"
 
-    self.DEFAULT_PATH_TO_RULES_FILE = "src/main/resources/rules.json"
-    self.MODS_KEEP_IT_ALL_SYMBOL = "."
-    self.MODS_REMOVE_LETTER_SYMBOL = "-"
-
-    self._root_rules_bean = None
-
-    self._male =  GenderCurryedMaker(Gender.MALE)
-    self._female =  GenderCurryedMaker(Gender.FEMALE)
-    self._androgynous =  GenderCurryedMaker(Gender.ANDROGYNOUS)
-
+    # class __GenderAndNamePartCurryedMaker:
+    #
+    #     def __init__(self, gender, namePart):
+    #         self.gender = gender
+    #         self.namePart = namePart
+    #
+    #     def to_genitive(self, name):
+    #         return self.make(self.namePart, self.gender, Case.GENITIVE, name)
+    #
+    #     def to_accusative(self, name):
+    #         return self.make(self.namePart, self.gender, Case.ACCUSATIVE, name)
+    #
+    #     def to_dative(self, name):
+    #         return self.make(self.namePart, self.gender, Case.DATIVE, name)
+    #
+    #     def to_prepositional(self, name):
+    #         return self.make(self.namePart, self.gender, Case.PREPOSITIONAL, name)
+    #
+    #     def to_instrumental(self, name):
+    #         return self.make(self.namePart, self.gender, Case.INSTRUMENTAL, name)
+    #
+    # class __GenderCurryedMaker(object):
+    #
+    #     def __init__(self, gender):
+    #         self.gender = gender
+    #
+    #     def as_firstname(self):
+    #         return __GenderAndNamePartCurryedMaker(self.gender, NamePart.FIRSTNAME)
+    #
+    #     def as_lastname(self):
+    #         return __GenderAndNamePartCurryedMaker(self.gender, NamePart.LASTNAME)
+    #
+    #     def as_middlename(self):
+    #         return __GenderAndNamePartCurryedMaker(self.gender, NamePart.MIDDLENAME)
 
     def __init__(self, path_to_rules_file):
-        pass
+
+        self._root_rules_bean = None
+
+        if path_to_rules_file:
+            with open(path_to_rules_file, "r") as fp:
+                self._root_rules_bean = Root.parse(json.load(fp=fp))
+        else:
+            self._root_rules_bean = Root.parse(rules_data.rules())
+
+        # self._male =  GenderCurryedMaker(Gender.MALE)
+        # self._female =  GenderCurryedMaker(Gender.FEMALE)
+        # self._androgynous =  GenderCurryedMaker(Gender.ANDROGYNOUS)
+        # pass
         # data = open(path_to_rules_file, "r+").read()
         # deserialize()
         # _root_rules_bean = JSON.std.beanFrom(RootBean.class, data);
-
-    class __GenderCurryedMaker(object):
-
-        def __init__(self, gender):
-            self.gender = gender
-
-        def as_firstname(self):
-            return __GenderAndNamePartCurryedMaker(self.gender, NamePart.FIRSTNAME)
-
-        def as_lastname(self):
-            return __GenderAndNamePartCurryedMaker(self.gender, NamePart.LASTNAME)
-
-        def as_middlename(self):
-            return __GenderAndNamePartCurryedMaker(self.gender, NamePart.MIDDLENAME)
-
-    class __GenderAndNamePartCurryedMaker:
-
-        def __init__(self, gender, namePart):
-            self.gender = gender
-            self.namePart = namePart
-
-        def to_genitive(self, name):
-            return self.make(self.namePart, self.gender, Case.GENITIVE, name)
-
-        def to_accusative(self, name):
-            return self.make(self.namePart, self.gender, Case.ACCUSATIVE, name)
-
-        def to_dative(self, name):
-            return self.make(self.namePart, self.gender, Case.DATIVE, name)
-
-        def to_prepositional(self, name):
-            return self.make(self.namePart, self.gender, Case.PREPOSITIONAL, name)
-
-        def to_instrumental(self, name):
-            return self.make(self.namePart, self.gender, Case.INSTRUMENTAL, name)
 
     def make(self, name_part, gender, case_to_use, original_name):
 
@@ -65,13 +72,13 @@ class PetrovichDeclinationMaker(object):
         name_bean = None
 
         if name_part == NamePart.FIRSTNAME:
-            name_bean = self.root_rules_bean.get_first_name()
+            name_bean = self._root_rules_bean.get_first_name()
         elif name_part == NamePart.LASTNAME:
-            name_bean = self.root_rules_bean.get_last_name()
+            name_bean = self._root_rules_bean.get_last_name()
         elif name_part == NamePart.MIDDLENAME:
-            name_bean = self.root_rules_bean.get_middle_name()
+            name_bean = self._root_rules_bean.get_middle_name()
         else:
-            name_bean = self.root_rules_bean.get_middle_name()
+            name_bean = self._root_rules_bean.get_middle_name()
 
         rule_to_use = None
         
@@ -92,3 +99,34 @@ class PetrovichDeclinationMaker(object):
             result = self.apply_mod2name(mod2apply, original_name)
 
         return result
+
+    def apply_mod2name(self, mod2apply: str, name: str):
+        result = name
+
+        if mod2apply != PetrovichDeclinationMaker.MODS_KEEP_IT_ALL_SYMBOL:
+            if PetrovichDeclinationMaker.MODS_REMOVE_LETTER_SYMBOL in mod2apply:
+                for i in range(len(mod2apply)):
+                    if str(mod2apply[i]) == PetrovichDeclinationMaker.MODS_REMOVE_LETTER_SYMBOL:
+                        result = result[0:len(result) - 1]
+                    else:
+                        result += mod2apply[i:]
+                        break
+            else:
+                result = name + mod2apply
+        return result
+
+    # def find_in_rule_bean_list(self, rule_bean_list: list, gender: Gender, original_name:str):
+    #     result = None
+    #     if rule_bean_list is not None:
+    #         # out: -- todo: write without a goto label
+    #         for rule_bean in rule_bean_list:
+    #             for test in rule_bean.test():
+    #                 if original_name.endswith(test):
+    #                     if rule_bean.gender() == Gender.ANDROGYNOUS.value:
+    #                         result = rule_bean
+    #                         break # out
+    #                     elif rule_bean.gender() == gender.value:
+    #                         result = rule_bean
+    #                         break # out todo: make sense of it, smth wrng with this elif
+    #
+    #     return result

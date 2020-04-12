@@ -9,5 +9,5 @@ authors = ['Anton Alekseev']
 authors_string = ', '.join(authors)
 emails = ['anton.m.alexeyev@gmail.com']
 license = 'MIT'
-copyright = '2017 ' + authors_string
-url = 'https://github.com/petrovich/pytrovich'
+copyright = '2020 ' + authors_string
+url = 'https://github.com/alexeyev/pytrovich'

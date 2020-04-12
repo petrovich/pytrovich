@@ -8,7 +8,7 @@ setup(
     author='Anton Alekseev',
     author_email='anton.m.alexeye@gmail.com',
     url='https://github.com/petrovich/pytrovich',
-    download_url='https://github.com/petrovich/pytrovich/archive/0.1.tar.gz',  # I'll explain this in a second
+    download_url='https://github.com/petrovich/pytrovich/archive/0.1.tar.gz',
     keywords=['nlp', 'morphology', 'russian language'],  # arbitrary keywords
     classifiers=[],
 )

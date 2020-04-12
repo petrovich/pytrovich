@@ -1,20 +1,31 @@
-The MIT License (MIT)
+![Petrovich](petrovich.png) pytrovich
+==========================================
 
-Copyright (c) 
+__pytrovich__ is a library which inflects Russian names to given grammatical case. It supports first names, last names and middle names inflections.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
+__pytrovich__ is a Python implementation of Petrovich ruby gem (petrovich-ruby -> petrovich-java -> pytrovich).
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+## Usage
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```python
+maker = PetrovichDeclinationMaker.getInstance();
+
+maker.make(NamePart.FIRSTNAME, Gender.MALE, Case.GENITIVE, "Иван");     //Ивана
+maker.make(NamePart.LASTNAME, Gender.MALE, Case.INSTRUMENTAL, "Иванов");   //Ивановым
+maker.make(NamePart.MIDDLENAME, Gender.FEMALE, Case.DATIVE, "Ивановна");   //Ивановне
+```
+
+### Custom rule file
+
+You can replace default rules file with some custom one. Only JSON format supported by now.
+```python
+PetrovichDeclinationMaker maker = PetrovichDeclinationMaker.getInstance("/path/to/custom/rules.file.json");
+```
+
+### Accuracy
+
+You can read about accuracy statistics in [petrovich-ruby](https://github.com/petrovich/petrovich-ruby#Оценка-аккуратности) project front page
+
+### License
+
+This project is available under MIT license.
