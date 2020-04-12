@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# well I've tried to use jsonpickle or something of the like but without much luck
 
 
 class Rule(object):
@@ -39,8 +40,8 @@ class Name(object):
 
     @staticmethod
     def parse(o: dict):
-        return Name(exceptions=[Rule.parse(e) for e in o["exceptions"]],
-                    suffixes=[Rule.parse(s) for s in o["suffixes"]])
+        return Name(exceptions=[Rule.parse(e) for e in o.get("exceptions", [])],
+                    suffixes=[Rule.parse(s) for s in o.get("suffixes", [])])
 
 
 class Root(object):
@@ -57,19 +58,6 @@ class Root(object):
 
     @staticmethod
     def parse(a: dict):
-        # a = json.loads(s)
         return Root(firstname=Name.parse(a["firstname"]),
                     lastname=Name.parse(a["lastname"]),
                     middlename=Name.parse(a["middlename"]))
-
-
-if __name__ == "__main__":
-    import json
-
-    r = Rule("gender", ["a", "b", "c"], ["d", "e", "f"])
-
-    # print(jsonpickle.encode(r))
-    # a = json.loads(jsonpickle.encode(r))
-    # a.pop("py/object", None)
-    # print(a)
-    # print(jsonpickle.decode(json.dumps(a), classes=[Rule]))

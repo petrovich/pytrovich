@@ -2,6 +2,7 @@
 
 
 def rules():
+    # todo: use github reference to petrovich/petrovich-rules
     return {
         "lastname": {
             "exceptions": [

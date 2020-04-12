@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from enum import Enum
+from functools import lru_cache
 
 
 class Case(Enum):
@@ -16,21 +17,26 @@ class Gender(Enum):
     FEMALE = 1
     ANDROGYNOUS = 2
 
-    names = {
-        MALE: "male",
-        FEMALE: "female",
-        ANDROGYNOUS: "androgynous"
-    }
+    @staticmethod
+    @lru_cache(100)
+    def names(x):
+        return {
+            Gender.MALE: "male",
+            Gender.FEMALE: "female",
+            Gender.ANDROGYNOUS: "androgynous"
+        }[x]
 
 
 class NamePart(Enum):
-
     LASTNAME = 0
     FIRSTNAME = 1
     MIDDLENAME = 2
 
-    names = {
-        LASTNAME: "lastname",
-        FIRSTNAME: "firstname",
-        MIDDLENAME: "middlename"
-    }
+    @staticmethod
+    @lru_cache(100)
+    def names(x):
+        return {
+            NamePart.LASTNAME: "lastname",
+            NamePart.FIRSTNAME: "firstname",
+            NamePart.MIDDLENAME: "middlename"
+        }[x]
