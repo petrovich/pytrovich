@@ -10,7 +10,7 @@ __pytrovich__ is a Python implementation of Petrovich ruby gem
 
 ```python
 from pytrovich.enums import NamePart, Gender, Case
-from pytrovich.names import PetrovichDeclinationMaker
+from pytrovich.maker import PetrovichDeclinationMaker
 
 maker = PetrovichDeclinationMaker()
 print(maker.make(NamePart.FIRSTNAME, Gender.MALE, Case.GENITIVE, "Иван"))  # Ивана

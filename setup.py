@@ -11,4 +11,5 @@ setup(
     # download_url='https://github.com/alexeyev/pytrovich/archive/0.1.tar.gz',
     keywords=['nlp', 'morphology', 'russian language'],
     classifiers=[],
+    zip_safe=False
 )

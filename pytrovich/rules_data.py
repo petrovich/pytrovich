@@ -2,7 +2,7 @@
 
 
 def rules():
-    # todo: use github reference to petrovich/petrovich-rules
+    # NOTA BENE: outdated, works only in case `petrovich-rules` are not accessible for some reason
     return {
         "lastname": {
             "exceptions": [

@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
+import sys
+from os import path
 
 from pytrovich import rules_data
 from pytrovich.enums import NamePart, Gender, Case
@@ -7,7 +9,7 @@ from pytrovich.models import Root, Name, Rule
 
 
 class PetrovichDeclinationMaker(object):
-    DEFAULT_PATH_TO_RULES_FILE = None
+    DEFAULT_PATH_TO_RULES_FILE = path.join(path.dirname(__file__), "petrovich-rules", "rules.json")
     MODS_KEEP_IT_ALL_SYMBOL = "."
     MODS_REMOVE_LETTER_SYMBOL = "-"
 
@@ -17,6 +19,7 @@ class PetrovichDeclinationMaker(object):
             with open(path_to_rules_file, "r") as fp:
                 self._root_rules_bean = Root.parse(json.load(fp=fp))
         else:
+            print("Using possibly outdated rules", file=sys.stderr)
             self._root_rules_bean = Root.parse(rules_data.rules())
 
     def make(self, name_part: NamePart, gender: Gender, case_to_use: Case, original_name: str):
