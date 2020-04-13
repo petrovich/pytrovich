@@ -15,10 +15,11 @@ class PetrovichDeclinationMaker(object):
 
     def __init__(self, path_to_rules_file: str = DEFAULT_PATH_TO_RULES_FILE):
 
-        if path_to_rules_file:
-            with open(path_to_rules_file, "r") as fp:
+        try:
+            with open(path_to_rules_file, "r", encoding="utf-8") as fp:
                 self._root_rules_bean = Root.parse(json.load(fp=fp))
-        else:
+        except Exception as e:
+            print("Error occurred: %s" % str(e), file=sys.stderr)
             print("Using possibly outdated rules", file=sys.stderr)
             self._root_rules_bean = Root.parse(rules_data.rules())
 
@@ -35,8 +36,8 @@ class PetrovichDeclinationMaker(object):
         else:
             name_bean: Name = self._root_rules_bean.middlename
 
-        exception_rule_bean: Rule = self.find_in_rule_bean_list(name_bean.exceptions, gender, original_name)
-        suffix_rule_bean: Rule = self.find_in_rule_bean_list(name_bean.suffixes, gender, original_name)
+        exception_rule_bean: Rule = PetrovichDeclinationMaker.find_in_rule_bean_list(name_bean.exceptions, gender, original_name)
+        suffix_rule_bean: Rule = PetrovichDeclinationMaker.find_in_rule_bean_list(name_bean.suffixes, gender, original_name)
 
         if exception_rule_bean and exception_rule_bean.gender == Gender.names(gender):
             rule_to_use: Rule = exception_rule_bean
@@ -47,11 +48,12 @@ class PetrovichDeclinationMaker(object):
 
         if rule_to_use:
             mod2apply: str = rule_to_use.mods[case_to_use.value]
-            result = self.apply_mod2name(mod2apply=mod2apply, name=original_name)
+            result = PetrovichDeclinationMaker.apply_mod2name(mod2apply=mod2apply, name=original_name)
 
         return result
 
-    def apply_mod2name(self, mod2apply: str, name: str):
+    @staticmethod
+    def apply_mod2name(mod2apply: str, name: str) -> str:
 
         result = name
 
@@ -72,7 +74,8 @@ class PetrovichDeclinationMaker(object):
 
         return result
 
-    def find_in_rule_bean_list(self, rule_bean_list: list, gender: Gender, original_name: str):
+    @staticmethod
+    def find_in_rule_bean_list(rule_bean_list: list, gender: Gender, original_name: str) -> Rule:
 
         result = None
         done = False

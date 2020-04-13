@@ -1,1 +1,2 @@
-include pytrovich/petrovich-rules/rules.json
+include README.md
+include pytrovich/petrovich-rules/*
