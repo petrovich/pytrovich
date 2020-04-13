@@ -1,15 +1,25 @@
 from distutils.core import setup
+import setuptools
+
+with open("README.md", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
 
 setup(
-    name='pytrovich',
-    packages=['pytrovich'],
-    version='0.1',
-    description='petrovich: an inflector for Russian anthroponyms, Python port',
-    author='Anton Alekseev',
-    author_email='anton.m.alexeye@gmail.com',
-    url='https://github.com/alexeyev/pytrovich',
-    # download_url='https://github.com/alexeyev/pytrovich/archive/0.1.tar.gz',
-    keywords=['nlp', 'morphology', 'russian language'],
-    classifiers=[],
-    zip_safe=False
+    name="pytrovich",
+    packages=setuptools.find_packages(),
+    version="0.0.1",
+    description="petrovich: an inflector for Russian anthroponyms, Python port",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    author="Anton Alekseev",
+    author_email="anton.m.alexeye@gmail.com",
+    url="https://github.com/alexeyev/pytrovich",
+    keywords=["nlp", "morphology", "russian language"],
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+    ],
+    zip_safe=False,
+    python_requires=">=3.6",
 )
