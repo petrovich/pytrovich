@@ -1,10 +1,10 @@
-![Petrovich](petrovich.png) pytrovich
+![Pytrovich](pytrovich.png)
 ==========================================
 
-__pytrovich__ is a library which inflects Russian names to given grammatical case. It supports first names, last names and middle names inflections.
+__pytrovich__ is a Python 3.6+ port of [petrovich library](https://github.com/petrovich) which inflects Russian names 
+to a given grammatical case. It supports first names, last names and middle names inflections.
 
-__pytrovich__ is a Python implementation of Petrovich ruby gem 
-([petrovich-java](https://github.com/petrovich/petrovich-java) being the main inspiration)
+[petrovich-java](https://github.com/petrovich/petrovich-java) was the main inspiration.
 
 ## Usage
 
@@ -27,7 +27,12 @@ maker = PetrovichDeclinationMaker("/path/to/custom/rules.file.json")
 
 ### More info
 
-For more info please refer to [petrovich](https://github.com/petrovich/) repos.
+For more info please refer to other [petrovich](https://github.com/petrovich/) repos.
+
+### TODO
+
+- grammatical gender detection (given the name)
+- `How to cite us` section
 
 ### License
 
