@@ -6,6 +6,11 @@ to a given grammatical case. It supports first names, last names and middle name
 
 [petrovich-java](https://github.com/petrovich/petrovich-java) was the main inspiration.
 
+[![PyPI version][pypi_badge]][pypi_link]
+
+[pypi_badge]: https://badge.fury.io/py/pytrovich.svg
+[pypi_link]: https://pypi.python.org/pypi/pytrovich
+
 ## Installation
 Should be as simple as that
 ```bash
@@ -32,16 +37,28 @@ maker = PetrovichDeclinationMaker("/path/to/custom/rules.file.json")
 ```
 E.g. if `pytrovich` fails on `PetrovichDeclinationMaker` creation, 
 one may consider downloading `rules.json` directly from 
-[petrovich-rules repo](https://github.com/petrovich/petrovich-rules) as a fix.
+[petrovich-rules repo](https://github.com/petrovich/petrovich-rules) as a fix (please create an issue if that actually happens).
+
+### How to cite
+
+Not neccessary, but greatly appreciated, if you use this work.
+
+```latex
+@misc{Pytrovich,
+  title     = {{petrovich/pytrovich: Python3 port of Petrovich, an inflector for Russian anthroponyms}},
+  year      = {2020},
+  url       = {https://github.com/petrovich/pytrovich},
+  language  = {english},
+}
+```
 
 ### More info
 
-For more info please refer to other [petrovich](https://github.com/petrovich/) repos.
+For more information on the project please refer to other [petrovich](https://github.com/petrovich/) repos.
 
 ### TODO
 
 - grammatical gender detection (given the name)
-- `How to cite us` section
 
 ## License
 
