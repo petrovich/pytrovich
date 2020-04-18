@@ -6,7 +6,9 @@ to a given grammatical case. It supports first names, last names and middle name
 
 [petrovich-java](https://github.com/petrovich/petrovich-java) was the main inspiration.
 
+![Python 3x](https://img.shields.io/badge/python-3.x-blue.svg)
 [![PyPI version][pypi_badge]][pypi_link]
+[![Downloads](https://pepy.tech/project/pytrovich)](https://pepy.tech/project/pytrovich)
 
 [pypi_badge]: https://badge.fury.io/py/pytrovich.svg
 [pypi_link]: https://pypi.python.org/pypi/pytrovich
