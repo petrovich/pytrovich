@@ -41,9 +41,9 @@ class PetrovichDeclinationMaker(object):
         suffix_rule_bean: Rule = \
             PetrovichDeclinationMaker.find_in_rule_bean_list(name_bean.suffixes, gender, original_name)
 
-        if exception_rule_bean and exception_rule_bean.gender == Gender.names(gender):
+        if exception_rule_bean and exception_rule_bean.gender == gender.str():
             rule_to_use: Rule = exception_rule_bean
-        elif suffix_rule_bean and suffix_rule_bean.gender == Gender.names(gender):
+        elif suffix_rule_bean and suffix_rule_bean.gender == gender.str():
             rule_to_use: Rule = suffix_rule_bean
         else:
             rule_to_use: Rule = exception_rule_bean if exception_rule_bean else suffix_rule_bean
@@ -92,8 +92,7 @@ class PetrovichDeclinationMaker(object):
                     # if match found
                     if original_name.endswith(test):
                         # if angrogynous OR gender match -- we're done, escaping both loops
-                        if rule_bean.gender == Gender.names(Gender.ANDROGYNOUS) or \
-                                rule_bean.gender == Gender.names(gender):
+                        if rule_bean.gender == Gender.ANDROGYNOUS.str() or rule_bean.gender == gender.str():
                             result = rule_bean
                             done = True
                             break
