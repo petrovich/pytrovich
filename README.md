@@ -64,6 +64,7 @@ Also please see the alternative (earlier) implementation: [Petrovich](https://gi
 ### TODO
 
 - grammatical gender detection (given the name)
+- evaluation based on [petrovich-eval](https://github.com/petrovich/petrovich-eval/)
 
 ## License
 
