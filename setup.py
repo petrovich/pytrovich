@@ -17,7 +17,7 @@ setup(
     long_description_content_type="text/markdown",
     author="Anton Alekseev",
     author_email="anton.m.alexeye@gmail.com",
-    url="https://github.com/alexeyev/pytrovich",
+    url="https://github.com/petrovich/pytrovich",
     keywords=["nlp", "morphology", "russian language"],
     classifiers=[
         "Programming Language :: Python :: 3",

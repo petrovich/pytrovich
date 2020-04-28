@@ -58,6 +58,9 @@ Not neccessary, but greatly appreciated, if you use this work.
 
 For more information on the project please refer to other [petrovich](https://github.com/petrovich/) repos.
 
+Also please see the alternative (earlier) implementation: [Petrovich](https://github.com/damirazo/Petrovich)  
+(@alexeyev was not aware of it at the time of porting `petrovich` to Python).
+
 ### TODO
 
 - grammatical gender detection (given the name)

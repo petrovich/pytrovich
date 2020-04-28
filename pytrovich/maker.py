@@ -23,7 +23,7 @@ class PetrovichDeclinationMaker(object):
             print("Using possibly outdated rules", file=sys.stderr)
             self._root_rules_bean = Root.parse(rules_data.rules())
 
-    def make(self, name_part: NamePart, gender: Gender, case_to_use: Case, original_name: str):
+    def make(self, name_part: NamePart, gender: Gender, case_to_use: Case, original_name: str) -> str:
 
         result = original_name
 
@@ -36,8 +36,10 @@ class PetrovichDeclinationMaker(object):
         else:
             name_bean: Name = self._root_rules_bean.middlename
 
-        exception_rule_bean: Rule = PetrovichDeclinationMaker.find_in_rule_bean_list(name_bean.exceptions, gender, original_name)
-        suffix_rule_bean: Rule = PetrovichDeclinationMaker.find_in_rule_bean_list(name_bean.suffixes, gender, original_name)
+        exception_rule_bean: Rule = \
+            PetrovichDeclinationMaker.find_in_rule_bean_list(name_bean.exceptions, gender, original_name)
+        suffix_rule_bean: Rule = \
+            PetrovichDeclinationMaker.find_in_rule_bean_list(name_bean.suffixes, gender, original_name)
 
         if exception_rule_bean and exception_rule_bean.gender == Gender.names(gender):
             rule_to_use: Rule = exception_rule_bean
