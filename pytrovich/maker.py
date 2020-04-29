@@ -5,7 +5,7 @@ from os import path
 
 from pytrovich import rules_data
 from pytrovich.enums import NamePart, Gender, Case
-from pytrovich.models import Root, Name, Rule
+from pytrovich.rule_models import Root, Name, Rule
 
 
 class PetrovichDeclinationMaker(object):
