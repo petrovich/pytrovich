@@ -9,9 +9,9 @@ class Rule(object):
 
     def __init__(self, male: list = None, female: list = None, androgynous: list = None):
         assert not male is None or not female is None or not androgynous is None
-        self.male = male if not male is None else []
-        self.female = female if not female is None else []
-        self.andro = androgynous if not androgynous is None else []
+        self.male = set(male) if not male is None else []
+        self.female = set(female) if not female is None else []
+        self.andro = set(androgynous) if not androgynous is None else []
 
     def serialize(self):
         builder = {}

@@ -65,6 +65,7 @@ Also please see the alternative (earlier) implementation: [Petrovich](https://gi
 
 - grammatical gender detection (given the name)
 - evaluation based on [petrovich-eval](https://github.com/petrovich/petrovich-eval/)
+- efficiency was not a top priority, the time has come for faster algorithms and data structures
 
 ## License
 
