@@ -63,9 +63,8 @@ Also please see the alternative (earlier) implementation: [Petrovich](https://gi
 
 ### TODO
 
-- grammatical gender detection (given the name)
+- efficiency was not a top priority, the time has come for faster algorithms, RegEx and data structures
 - evaluation based on [petrovich-eval](https://github.com/petrovich/petrovich-eval/)
-- efficiency was not a top priority, the time has come for faster algorithms and data structures
 
 ## License
 

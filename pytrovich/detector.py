@@ -5,7 +5,7 @@ from os import path
 
 from pytrovich import rules_data
 from pytrovich.enums import Gender
-from pytrovich.gender_models import Root, Name, Rule
+from pytrovich.gender_models import Root, Name
 
 
 class PetrovichGenderPredictor(object):
@@ -63,27 +63,41 @@ class PetrovichGenderPredictor(object):
         assert not (firstname is None and lastname is None and middlename is None), \
             "At least one part of the name should be given."
 
-        results = set([])
+        results_middlename, results_firstname, results_lastname = set([]), set([]), set([])
 
         if middlename:
-            results.update(
-                PetrovichGenderPredictor._check_against_exceptions(self._root_rules_bean.middlename, middlename))
-            results.update(
-                PetrovichGenderPredictor._check_again_suffixes(self._root_rules_bean.middlename, middlename))
-        if firstname:
-            results.update(
-                PetrovichGenderPredictor._check_against_exceptions(self._root_rules_bean.firstname, firstname))
-            results.update(
-                PetrovichGenderPredictor._check_again_suffixes(self._root_rules_bean.firstname, firstname))
-        if lastname:
-            results.update(PetrovichGenderPredictor._check_against_exceptions(self._root_rules_bean.lastname, lastname))
-            results.update(PetrovichGenderPredictor._check_again_suffixes(self._root_rules_bean.lastname, lastname))
-        # todo: rule check in progress
+            results_middlename.update(self._check_against_exceptions(self._root_rules_bean.middlename, middlename))
+            results_middlename.update(self._check_again_suffixes(self._root_rules_bean.middlename, middlename))
 
-        return results
+            if len(results_middlename) > 0 and next(iter(results_middlename)) != Gender.ANDROGYNOUS:
+                return next(iter(results_middlename))
+
+        if firstname:
+            results_firstname.update(self._check_against_exceptions(self._root_rules_bean.firstname, firstname))
+            results_firstname.update(self._check_again_suffixes(self._root_rules_bean.firstname, firstname))
+
+        if lastname:
+            results_lastname.update(self._check_against_exceptions(self._root_rules_bean.lastname, lastname))
+            results_lastname.update(self._check_again_suffixes(self._root_rules_bean.lastname, lastname))
+
+        if firstname and lastname:
+            if results_firstname and results_lastname:
+                fn, ln = next(iter(results_firstname)), next(iter(results_lastname))
+                if fn != Gender.ANDROGYNOUS and ln == Gender.ANDROGYNOUS:
+                    return fn
+                if ln != Gender.ANDROGYNOUS and fn == Gender.ANDROGYNOUS:
+                    return ln
+
+        joined_set = results_firstname.union(results_middlename).union(results_lastname)
+
+        if len(joined_set) == 1:
+            return next(iter(joined_set))
+        else:
+            print("Gender prediction was confused, possible gender options: %s" % str(joined_set), file=sys.stderr)
+            return next(iter(joined_set))
 
 
 if __name__ == "__main__":
     detector = PetrovichGenderPredictor()
-    # print(detector._root_rules_bean)
-    print(detector.detect("Иван", "Говнов", "Семёнов оглы"))
+    print(detector.detect(firstname="Иван", lastname="Голубцов"))
+    print(detector.detect(firstname="Арзу", middlename="Лутфияр кызы"))
