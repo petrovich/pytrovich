@@ -2,9 +2,15 @@
 ==========================================
 
 __pytrovich__ is a Python 3.6+ port of [petrovich library](https://github.com/petrovich) which inflects Russian names 
-to a given grammatical case. It supports first names, last names and middle names inflections.
+to a given grammatical case. It supports first names, last names and middle names inflections. Since version 0.0.2,
+gender detection is also available. 
 
 [petrovich-java](https://github.com/petrovich/petrovich-java) was the main inspiration.
+
+The alternative (earlier) port: [Petrovich](https://github.com/damirazo/Petrovich)  
+([@alexeyev](https://github.com/alexeyev) was not aware of it at the time of porting `petrovich` to Python). 
+The only meaningful difference we have found is that it does not support gender detection.
+
 
 ![Python 3x](https://img.shields.io/badge/python-3.x-blue.svg)
 [![PyPI version][pypi_badge]][pypi_link]
@@ -30,6 +36,17 @@ print(maker.make(NamePart.FIRSTNAME, Gender.MALE, Case.GENITIVE, "Иван"))  #
 print(maker.make(NamePart.LASTNAME, Gender.MALE, Case.INSTRUMENTAL, "Иванов"))  # Ивановым
 print(maker.make(NamePart.MIDDLENAME, Gender.FEMALE, Case.DATIVE, "Ивановна"))  # Ивановне
 ```
+
+
+```python 
+from pytrovich.detector import PetrovichGenderDetector
+
+detector = PetrovichGenderDetector()
+print(detector.detect(firstname="Иван"))  # Gender.MALE
+print(detector.detect(firstname="Иван", middlename="Семёнович"))  # Gender.MALE
+print(detector.detect(firstname="Арзу", middlename="Лутфияр кызы"))  # Gender.FEMALE
+```
+
 
 ### Custom rule file
 
@@ -57,9 +74,6 @@ Not neccessary, but greatly appreciated, if you use this work.
 ### More info
 
 For more information on the project please refer to other [petrovich](https://github.com/petrovich/) repos.
-
-Also please see the alternative (earlier) implementation: [Petrovich](https://github.com/damirazo/Petrovich)  
-(@alexeyev was not aware of it at the time of porting `petrovich` to Python).
 
 ### TODO
 

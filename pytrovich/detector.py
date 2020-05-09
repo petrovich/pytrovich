@@ -8,7 +8,7 @@ from pytrovich.enums import Gender
 from pytrovich.gender_models import Root, Name
 
 
-class PetrovichGenderPredictor(object):
+class PetrovichGenderDetector(object):
     DEFAULT_PATH_TO_RULES_FILE = path.join(path.dirname(__file__), "petrovich-rules", "gender.json")
 
     def __init__(self, path_to_rules_file: str = DEFAULT_PATH_TO_RULES_FILE):
@@ -98,6 +98,6 @@ class PetrovichGenderPredictor(object):
 
 
 if __name__ == "__main__":
-    detector = PetrovichGenderPredictor()
+    detector = PetrovichGenderDetector()
     print(detector.detect(firstname="Иван", lastname="Голубцов"))
     print(detector.detect(firstname="Арзу", middlename="Лутфияр кызы"))

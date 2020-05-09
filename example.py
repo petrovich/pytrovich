@@ -1,7 +1,9 @@
 # coding: utf-8
+import pytrovich
+from pytrovich.detector import PetrovichGenderDetector
 from pytrovich.enums import NamePart, Gender, Case
 from pytrovich.maker import PetrovichDeclinationMaker
-import pytrovich
+
 print(pytrovich.__version__)
 
 if __name__ == "__main__":
@@ -13,9 +15,7 @@ if __name__ == "__main__":
     print(maker.make(NamePart.LASTNAME, Gender.FEMALE, Case.INSTRUMENTAL, "Герман"))  # Ивановым
     print(maker.make(NamePart.LASTNAME, Gender.FEMALE, Case.DATIVE, "Дюма"))  # Ивановне
 
-    # detector = PetrovichGenderDetector()
-    # detector.detect({
-    #     NamePart.FIRSTNAME: "Иван",
-    #     NamePart.MIDDLENAME: "Абдуллович",
-    #     NamePart.LASTNAME: "Мень",
-    # })
+    detector = PetrovichGenderDetector()
+    print(detector.detect(firstname="Иван"))  # Gender.MALE
+    print(detector.detect(firstname="Иван", middlename="Семёнович"))  # Gender.MALE
+    print(detector.detect(firstname="Арзу", middlename="Лутфияр кызы"))  # Gender.FEMALE
