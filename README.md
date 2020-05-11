@@ -7,7 +7,7 @@ gender detection is also available.
 
 [petrovich-java](https://github.com/petrovich/petrovich-java) was the main inspiration.
 
-The alternative (earlier) port: [Petrovich](https://github.com/damirazo/Petrovich)  ([@alexeyev](https://github.com/alexeyev) was not aware of it at the time of porting `petrovich` to Python). 
+__The alternative (earlier) port__: [Petrovich](https://github.com/damirazo/Petrovich)  ([@alexeyev](https://github.com/alexeyev) was not aware of it at the time of porting `petrovich` to Python). 
 The only meaningful difference we have found is that it does not support gender detection.
 
 
