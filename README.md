@@ -26,6 +26,8 @@ pip install pytrovich
 
 ## Usage
 
+### Inflection
+
 ```python
 from pytrovich.enums import NamePart, Gender, Case
 from pytrovich.maker import PetrovichDeclinationMaker
@@ -36,6 +38,7 @@ print(maker.make(NamePart.LASTNAME, Gender.MALE, Case.INSTRUMENTAL, "Ивано�
 print(maker.make(NamePart.MIDDLENAME, Gender.FEMALE, Case.DATIVE, "Ивановна"))  # Ивановне
 ```
 
+### Gender detection
 
 ```python 
 from pytrovich.detector import PetrovichGenderDetector
