@@ -81,6 +81,7 @@ For more information on the project please refer to other [petrovich](https://gi
 
 - efficiency was not a top priority, the time has come for faster algorithms, RegEx and data structures
 - evaluation based on [petrovich-eval](https://github.com/petrovich/petrovich-eval/)
+- the support of hyphenated names
 
 ## License
 

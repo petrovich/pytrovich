@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 package = "pytrovich"
-version = "0.0.2"
+version = "0.0.3"
 authors = ["Anton Alekseev"]
 authors_string = ", ".join(authors)
 emails = ["anton.m.alexeyev@gmail.com"]
