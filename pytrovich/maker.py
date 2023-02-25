@@ -81,6 +81,7 @@ class PetrovichDeclinationMaker(object):
 
         result = None
         done = False
+        testable_name = original_name.lower()
 
         if rule_bean_list is not None:
             # traversing all rules available
@@ -90,7 +91,7 @@ class PetrovichDeclinationMaker(object):
                 # traversing all available checks for word ends
                 for test in rule_bean.test:
                     # if match found
-                    if original_name.endswith(test):
+                    if testable_name.endswith(test):
                         # if angrogynous OR gender match -- we're done, escaping both loops
                         if rule_bean.gender == Gender.ANDROGYNOUS.str() or rule_bean.gender == gender.str():
                             result = rule_bean
