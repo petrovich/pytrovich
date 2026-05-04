@@ -7,6 +7,31 @@ on:
   pull_request:
 
 jobs:
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    # Runs in parallel with tests — ruff is independent of the Python
+    # matrix (it's a Rust binary), so one invocation is enough.
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Install ruff
+      run: pip install ruff
+
+    - name: Lint
+      # Configuration lives in ruff.toml at the repo root.
+      run: ruff check .
+
+    - name: Check formatting
+      # --check exits non-zero if any file would be reformatted, without
+      # modifying anything. Run `ruff format .` locally to fix.
+      run: ruff format --check .
+
+
   tests:
     name: Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
@@ -22,10 +47,11 @@ jobs:
         - '3.12'
         - '3.13'
         - '3.14'
-    steps:
-    - uses: actions/checkout@v4
 
-    - uses: actions/setup-python@v4
+    steps:
+    - uses: actions/checkout@v5
+
+    - uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -42,7 +68,7 @@ jobs:
       # Upload from a single matrix cell to avoid 6× duplicate artifacts;
       # the XML is identical across Python versions.
       if: matrix.python-version == '3.12'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: coverage-xml
         path: coverage.xml
@@ -57,6 +83,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v5
+
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'

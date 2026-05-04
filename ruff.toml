@@ -1,0 +1,53 @@
+# ruff configuration — see https://docs.astral.sh/ruff/configuration/
+#
+# A pragmatic linter+formatter setup for pytrovich. Picks up real bugs
+# (pyflakes), modern-Python opportunities (pyupgrade), and style issues
+# that came up in code review (the `not X is None` family), without
+# being so loud that day-1 has hundreds of warnings.
+
+target-version = "py39"
+line-length = 110
+
+# Generated data files, the petrovich-rules submodule (which is JSON
+# but ships in the package directory), and ephemeral build/coverage
+# artifacts are not linted.
+extend-exclude = [
+    "pytrovich/rules_data.py",
+    "pytrovich/petrovich-rules",
+    "build",
+    "dist",
+    "htmlcov",
+    "coverage.xml",
+    ".coverage",
+    "*.egg-info",
+    ".benchmarks",
+    ".pytest*",
+    ".idea",
+]
+
+[lint]
+# Enable, in addition to ruff's defaults:
+#   F   pyflakes — real-bug rules (undefined names, unused imports, etc.)
+#   E,W pycodestyle — PEP 8 style
+#   I   isort — import ordering
+#   UP  pyupgrade — modernize syntax for the target Python version
+#   B   flake8-bugbear, light subset — likely-bug patterns
+select = ["F", "E", "W", "I", "UP", "B"]
+
+# Specific opt-outs:
+#   E501   line-too-long. The Russian comments and the existing rules
+#          dict make a hard line-length cap a poor fit; ruff format
+#          handles wrapping for code, and we'd rather be lenient on
+#          docstrings/comments than mass-rewrite them.
+ignore = ["E501"]
+
+[lint.per-file-ignores]
+# Tests are allowed to assert on truthiness via direct comparison
+# (== True, == False) and to use module-level constants in patterns
+# that bugbear sometimes flags. Keep test files maximally readable.
+"tests/**" = ["B"]
+
+[format]
+# ruff format is essentially black-compatible. Default settings are fine.
+quote-style = "double"
+indent-style = "space"

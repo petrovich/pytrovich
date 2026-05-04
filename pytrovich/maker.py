@@ -1,14 +1,13 @@
-# -*- coding: utf-8 -*-
 import json
 import sys
 from os import path
 
 from pytrovich import rules_data
-from pytrovich.enums import NamePart, Gender, Case
-from pytrovich.rule_models import Root, Name, Rule
+from pytrovich.enums import Case, Gender, NamePart
+from pytrovich.rule_models import Name, Root, Rule
 
 
-class PetrovichDeclinationMaker(object):
+class PetrovichDeclinationMaker:
     DEFAULT_PATH_TO_RULES_FILE = path.join(path.dirname(__file__), "petrovich-rules", "rules.json")
     MODS_KEEP_IT_ALL_SYMBOL = "."
     MODS_REMOVE_LETTER_SYMBOL = "-"
@@ -16,10 +15,10 @@ class PetrovichDeclinationMaker(object):
     def __init__(self, path_to_rules_file: str = DEFAULT_PATH_TO_RULES_FILE):
 
         try:
-            with open(path_to_rules_file, "r", encoding="utf-8") as fp:
+            with open(path_to_rules_file, encoding="utf-8") as fp:
                 self._root_rules_bean = Root.parse(json.load(fp=fp))
         except Exception as e:
-            print("Error occurred: %s" % str(e), file=sys.stderr)
+            print(f"Error occurred: {e}", file=sys.stderr)
             print("Using possibly outdated rules", file=sys.stderr)
             self._root_rules_bean = Root.parse(rules_data.rules())
 
@@ -36,10 +35,12 @@ class PetrovichDeclinationMaker(object):
         else:
             name_bean: Name = self._root_rules_bean.middlename
 
-        exception_rule_bean: Rule = \
-            PetrovichDeclinationMaker.find_in_rule_bean_list(name_bean.exceptions, gender, original_name)
-        suffix_rule_bean: Rule = \
-            PetrovichDeclinationMaker.find_in_rule_bean_list(name_bean.suffixes, gender, original_name)
+        exception_rule_bean: Rule = PetrovichDeclinationMaker.find_in_rule_bean_list(
+            name_bean.exceptions, gender, original_name
+        )
+        suffix_rule_bean: Rule = PetrovichDeclinationMaker.find_in_rule_bean_list(
+            name_bean.suffixes, gender, original_name
+        )
 
         if exception_rule_bean and exception_rule_bean.gender == gender.str():
             rule_to_use: Rule = exception_rule_bean
@@ -66,7 +67,7 @@ class PetrovichDeclinationMaker(object):
                 for i in range(len(mod2apply)):
                     # if special character "-", removing the last letter
                     if mod2apply[i] == PetrovichDeclinationMaker.MODS_REMOVE_LETTER_SYMBOL:
-                        result = result[0:len(result) - 1]
+                        result = result[0 : len(result) - 1]
                     # if not a special character "-", adding the rest of the modifier to the result
                     else:
                         result += mod2apply[i:]

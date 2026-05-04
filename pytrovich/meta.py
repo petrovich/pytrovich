@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 package = "pytrovich"
 version = "0.0.6"

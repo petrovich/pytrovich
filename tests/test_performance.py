@@ -23,6 +23,7 @@ selected/deselected at the command line:
 The scripts in `scripts/` use the explicit selectors so coverage runs
 exclude benchmarks and benchmark runs exclude unit tests.
 """
+
 import pytest
 
 from pytrovich.detector import PetrovichGenderDetector
@@ -40,27 +41,27 @@ pytestmark = pytest.mark.benchmark
 # list, indeclinable). Designed to be more realistic than benchmarking a
 # single name in a hot loop.
 SAMPLE_WORKLOAD = [
-    (NamePart.FIRSTNAME,  Gender.MALE,   Case.GENITIVE,      'Иван'),
-    (NamePart.FIRSTNAME,  Gender.MALE,   Case.DATIVE,        'Василий'),
-    (NamePart.FIRSTNAME,  Gender.FEMALE, Case.ACCUSATIVE,    'Ксюша'),
-    (NamePart.FIRSTNAME,  Gender.FEMALE, Case.PREPOSITIONAL, 'Елена'),
-    (NamePart.FIRSTNAME,  Gender.MALE,   Case.INSTRUMENTAL, 'Александр'),
-    (NamePart.MIDDLENAME, Gender.FEMALE, Case.GENITIVE,      'Геннадиевна'),
-    (NamePart.MIDDLENAME, Gender.MALE,   Case.DATIVE,        'Васильевич'),
-    (NamePart.MIDDLENAME, Gender.MALE,   Case.INSTRUMENTAL, 'Павлович'),
-    (NamePart.LASTNAME,   Gender.FEMALE, Case.GENITIVE,      'Цветаева'),
-    (NamePart.LASTNAME,   Gender.MALE,   Case.DATIVE,        'Толстой'),
-    (NamePart.LASTNAME,   Gender.MALE,   Case.INSTRUMENTAL, 'Лермонтов'),
-    (NamePart.LASTNAME,   Gender.FEMALE, Case.PREPOSITIONAL, 'Баркова'),
+    (NamePart.FIRSTNAME, Gender.MALE, Case.GENITIVE, "Иван"),
+    (NamePart.FIRSTNAME, Gender.MALE, Case.DATIVE, "Василий"),
+    (NamePart.FIRSTNAME, Gender.FEMALE, Case.ACCUSATIVE, "Ксюша"),
+    (NamePart.FIRSTNAME, Gender.FEMALE, Case.PREPOSITIONAL, "Елена"),
+    (NamePart.FIRSTNAME, Gender.MALE, Case.INSTRUMENTAL, "Александр"),
+    (NamePart.MIDDLENAME, Gender.FEMALE, Case.GENITIVE, "Геннадиевна"),
+    (NamePart.MIDDLENAME, Gender.MALE, Case.DATIVE, "Васильевич"),
+    (NamePart.MIDDLENAME, Gender.MALE, Case.INSTRUMENTAL, "Павлович"),
+    (NamePart.LASTNAME, Gender.FEMALE, Case.GENITIVE, "Цветаева"),
+    (NamePart.LASTNAME, Gender.MALE, Case.DATIVE, "Толстой"),
+    (NamePart.LASTNAME, Gender.MALE, Case.INSTRUMENTAL, "Лермонтов"),
+    (NamePart.LASTNAME, Gender.FEMALE, Case.PREPOSITIONAL, "Баркова"),
 ]
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def maker() -> PetrovichDeclinationMaker:
     return PetrovichDeclinationMaker()
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def detector() -> PetrovichGenderDetector:
     return PetrovichGenderDetector()
 
@@ -71,15 +72,22 @@ class TestMakerPerformance:
     def test_make_single_call(self, benchmark, maker):
         # Measures the per-call cost for one common short name.
         result = benchmark(
-            maker.make, NamePart.FIRSTNAME, Gender.MALE, Case.GENITIVE, 'Иван',
+            maker.make,
+            NamePart.FIRSTNAME,
+            Gender.MALE,
+            Case.GENITIVE,
+            "Иван",
         )
-        assert result == 'Ивана'
+        assert result == "Ивана"
 
     def test_make_long_lastname(self, benchmark, maker):
         # Longer string + likely deeper rule traversal.
         result = benchmark(
-            maker.make, NamePart.LASTNAME, Gender.FEMALE, Case.INSTRUMENTAL,
-            'Тургенева-Достоевская',
+            maker.make,
+            NamePart.LASTNAME,
+            Gender.FEMALE,
+            Case.INSTRUMENTAL,
+            "Тургенева-Достоевская",
         )
         assert isinstance(result, str)
 
@@ -89,6 +97,7 @@ class TestMakerPerformance:
         def workload():
             for name_part, gender, case_to_use, name in SAMPLE_WORKLOAD:
                 maker.make(name_part, gender, case_to_use, name)
+
         benchmark(workload)
 
 
@@ -96,7 +105,7 @@ class TestDetectorPerformance:
     """Per-call latency and throughput for PetrovichGenderDetector."""
 
     def test_detect_by_firstname(self, benchmark, detector):
-        result = benchmark(detector.detect, 'Иван')
+        result = benchmark(detector.detect, "Иван")
         # detector.detect's first positional is firstname; lock it.
         assert result == Gender.MALE
 
@@ -106,18 +115,20 @@ class TestDetectorPerformance:
         # worst case in detector.detect's call graph.
         result = benchmark(
             detector.detect,
-            'Иван', 'Иванов', 'Семёнович',
+            "Иван",
+            "Иванов",
+            "Семёнович",
         )
         assert result == Gender.MALE
 
     def test_detect_mixed_workload(self, benchmark, detector):
         names = [
-            ('Иван',     None,         'Семёнович'),
-            ('Мария',    'Цветаева',   'Ивановна'),
-            ('Василий',  'Лермонтов',  None),
-            ('Анна',     'Ахматова',   'Андреевна'),
-            ('Алексей',  'Толстой',    'Николаевич'),
-            ('Арзу',     None,         'Лутфияр кызы'),
+            ("Иван", None, "Семёнович"),
+            ("Мария", "Цветаева", "Ивановна"),
+            ("Василий", "Лермонтов", None),
+            ("Анна", "Ахматова", "Андреевна"),
+            ("Алексей", "Толстой", "Николаевич"),
+            ("Арзу", None, "Лутфияр кызы"),
         ]
 
         def workload():

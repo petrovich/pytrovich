@@ -13,6 +13,7 @@ stays after the strip.
 Usage:
     python scripts/trim_benchmark_json.py benchmark.json
 """
+
 import json
 import os
 import sys
@@ -23,17 +24,14 @@ def trim(path: str) -> None:
         data = json.load(f)
 
     before = os.path.getsize(path)
-    for bench in data.get('benchmarks', []):
-        bench.get('stats', {}).pop('data', None)
+    for bench in data.get("benchmarks", []):
+        bench.get("stats", {}).pop("data", None)
 
-    with open(path, 'w') as f:
+    with open(path, "w") as f:
         json.dump(data, f, indent=2)
 
     after = os.path.getsize(path)
-    print(
-        f"Trimmed {path}: {before:,} -> {after:,} bytes "
-        f"({(1 - after / before) * 100:.2f}% smaller)"
-    )
+    print(f"Trimmed {path}: {before:,} -> {after:,} bytes ({(1 - after / before) * 100:.2f}% smaller)")
 
 
 if __name__ == "__main__":

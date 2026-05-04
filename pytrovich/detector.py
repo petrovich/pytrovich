@@ -1,23 +1,22 @@
-# -*- coding: utf-8 -*-
 import json
 import sys
 from os import path
 
 from pytrovich import rules_data
 from pytrovich.enums import Gender
-from pytrovich.gender_models import Root, Name
+from pytrovich.gender_models import Name, Root
 
 
-class PetrovichGenderDetector(object):
+class PetrovichGenderDetector:
     DEFAULT_PATH_TO_RULES_FILE = path.join(path.dirname(__file__), "petrovich-rules", "gender.json")
 
     def __init__(self, path_to_rules_file: str = DEFAULT_PATH_TO_RULES_FILE):
 
         try:
-            with open(path_to_rules_file, "r", encoding="utf-8") as fp:
+            with open(path_to_rules_file, encoding="utf-8") as fp:
                 self._root_rules_bean = Root.parse(json.load(fp=fp)["gender"])
         except Exception as e:
-            print("Error occurred: %s" % str(e), file=sys.stderr)
+            print(f"Error occurred: {e}", file=sys.stderr)
             print("Using possibly outdated rules", file=sys.stderr)
             self._root_rules_bean = Root.parse(rules_data.gender()["gender"])
 
@@ -60,20 +59,27 @@ class PetrovichGenderDetector(object):
 
     def detect(self, firstname=None, lastname=None, middlename=None):
 
-        assert not (firstname is None and lastname is None and middlename is None), \
+        assert not (firstname is None and lastname is None and middlename is None), (
             "At least one part of the name should be given."
+        )
 
         results_middlename, results_firstname, results_lastname = set([]), set([]), set([])
 
         if middlename:
-            results_middlename.update(self._check_against_exceptions(self._root_rules_bean.middlename, middlename))
-            results_middlename.update(self._check_again_suffixes(self._root_rules_bean.middlename, middlename))
+            results_middlename.update(
+                self._check_against_exceptions(self._root_rules_bean.middlename, middlename)
+            )
+            results_middlename.update(
+                self._check_again_suffixes(self._root_rules_bean.middlename, middlename)
+            )
 
             if len(results_middlename) > 0 and next(iter(results_middlename)) != Gender.ANDROGYNOUS:
                 return next(iter(results_middlename))
 
         if firstname:
-            results_firstname.update(self._check_against_exceptions(self._root_rules_bean.firstname, firstname))
+            results_firstname.update(
+                self._check_against_exceptions(self._root_rules_bean.firstname, firstname)
+            )
             results_firstname.update(self._check_again_suffixes(self._root_rules_bean.firstname, firstname))
 
         if lastname:
@@ -93,7 +99,10 @@ class PetrovichGenderDetector(object):
         if len(joined_set) == 1:
             return next(iter(joined_set))
         else:
-            print("Gender prediction was confused, possible gender options: %s" % str(joined_set), file=sys.stderr)
+            print(
+                f"Gender prediction was confused, possible gender options: {joined_set}",
+                file=sys.stderr,
+            )
             return next(iter(joined_set))
 
 

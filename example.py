@@ -1,7 +1,6 @@
-# coding: utf-8
 import pytrovich
 from pytrovich.detector import PetrovichGenderDetector
-from pytrovich.enums import NamePart, Gender, Case
+from pytrovich.enums import Case, Gender, NamePart
 from pytrovich.maker import PetrovichDeclinationMaker
 
 print(pytrovich.__version__)
