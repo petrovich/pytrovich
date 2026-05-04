@@ -1,4 +1,3 @@
-
 package = "pytrovich"
 version = "0.0.6"
 authors = ["Anton Alekseev"]
