@@ -19,7 +19,7 @@ class TestPetrovichDeclinationMaker:
             (NamePart.FIRSTNAME, Gender.FEMALE, Case.GENITIVE, "Мария", "Марии"),
             (NamePart.FIRSTNAME, Gender.MALE, Case.DATIVE, "Василий", "Василию"),
             (NamePart.FIRSTNAME, Gender.FEMALE, Case.ACCUSATIVE, "Ксюша", "Ксюшу"),
-            (NamePart.FIRSTNAME, Gender.MALE, Case.INSTRUMENTAL, "Паша", "Пашой"),
+            (NamePart.FIRSTNAME, Gender.MALE, Case.INSTRUMENTAL, "Паша", "Пашей"),
             (NamePart.FIRSTNAME, Gender.FEMALE, Case.PREPOSITIONAL, "Елена", "Елене"),
             # middlenames
             (NamePart.MIDDLENAME, Gender.FEMALE, Case.GENITIVE, "Геннадиевна", "Геннадиевны"),
@@ -99,26 +99,32 @@ class TestPetrovichDeclinationMakerCoverage:
         # No input validation: empty name returns empty string silently.
         assert maker.make(NamePart.LASTNAME, Gender.MALE, Case.GENITIVE, "") == ""
 
-    def test_missing_rules_file_falls_back_to_bundled_data(self, tmp_path, capsys):
-        # An invalid rules path should not raise; it logs to stderr and
-        # falls back to the embedded rules_data module.
-        instance = PetrovichDeclinationMaker(str(tmp_path / "does-not-exist.json"))
-        captured = capsys.readouterr()
-        assert "Error occurred" in captured.err
-        assert "outdated rules" in captured.err
-        # And it still works.
-        assert instance.make(NamePart.FIRSTNAME, Gender.MALE, Case.GENITIVE, "Иван") == "Ивана"
+    def test_missing_rules_file_raises_runtime_error(self, tmp_path):
+        # The constructor used to silently fall back to a frozen 2020 copy
+        # of the rules embedded as pytrovich/rules_data.py. That fallback
+        # was removed because it diverged from the upstream rules and
+        # masked real bugs. A missing rules file now raises RuntimeError
+        # with a hint telling the user how to fix it.
+        with pytest.raises(RuntimeError, match="rules file not found"):
+            PetrovichDeclinationMaker(str(tmp_path / "does-not-exist.json"))
+
+    def test_malformed_rules_file_raises_runtime_error(self, tmp_path):
+        # Same defensive contract for unparseable JSON.
+        bad = tmp_path / "bad.json"
+        bad.write_text("not valid json {{{")
+        with pytest.raises(RuntimeError, match="malformed"):
+            PetrovichDeclinationMaker(str(bad))
 
     def test_custom_rules_file_is_loaded(self):
-        # If a user passes a valid path, it is used in preference to the
-        # bundled rules.
+        # Explicit-path constructor is part of the public API. The skip
+        # branch that used to be here for missing rules.json is now
+        # unreachable: if rules.json weren't present, the `maker` session
+        # fixture would have raised RuntimeError before this test ran.
         bundled = os.path.join(
             os.path.dirname(__import__("pytrovich").__file__),
             "petrovich-rules",
             "rules.json",
         )
-        if not os.path.exists(bundled):
-            pytest.skip("bundled rules.json not present in this checkout")
         instance = PetrovichDeclinationMaker(bundled)
         assert instance.make(NamePart.FIRSTNAME, Gender.MALE, Case.GENITIVE, "Иван") == "Ивана"
 

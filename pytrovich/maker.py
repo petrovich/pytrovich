@@ -1,8 +1,6 @@
 import json
-import sys
 from os import path
 
-from pytrovich import rules_data
 from pytrovich.enums import Case, Gender, NamePart
 from pytrovich.rule_models import Name, Root, Rule
 
@@ -13,14 +11,23 @@ class PetrovichDeclinationMaker:
     MODS_REMOVE_LETTER_SYMBOL = "-"
 
     def __init__(self, path_to_rules_file: str = DEFAULT_PATH_TO_RULES_FILE):
-
         try:
             with open(path_to_rules_file, encoding="utf-8") as fp:
                 self._root_rules_bean = Root.parse(json.load(fp=fp))
-        except Exception as e:
-            print(f"Error occurred: {e}", file=sys.stderr)
-            print("Using possibly outdated rules", file=sys.stderr)
-            self._root_rules_bean = Root.parse(rules_data.rules())
+        except FileNotFoundError as e:
+            raise RuntimeError(
+                f"pytrovich rules file not found at {path_to_rules_file!r}. "
+                f"If you are running from a source checkout, run "
+                f"`git submodule update --init --recursive`. If installed "
+                f"from PyPI, try reinstalling pytrovich."
+            ) from e
+        except (json.JSONDecodeError, KeyError) as e:
+            raise RuntimeError(
+                f"pytrovich rules file at {path_to_rules_file!r} is "
+                f"malformed: {e}. If installed from PyPI, try reinstalling; "
+                f"if you are pointing at a custom rules file, regenerate it "
+                f"from petrovich-rules upstream."
+            ) from e
 
     def make(self, name_part: NamePart, gender: Gender, case_to_use: Case, original_name: str) -> str:
 

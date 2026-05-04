@@ -2,7 +2,6 @@ import json
 import sys
 from os import path
 
-from pytrovich import rules_data
 from pytrovich.enums import Gender
 from pytrovich.gender_models import Name, Root
 
@@ -11,14 +10,23 @@ class PetrovichGenderDetector:
     DEFAULT_PATH_TO_RULES_FILE = path.join(path.dirname(__file__), "petrovich-rules", "gender.json")
 
     def __init__(self, path_to_rules_file: str = DEFAULT_PATH_TO_RULES_FILE):
-
         try:
             with open(path_to_rules_file, encoding="utf-8") as fp:
                 self._root_rules_bean = Root.parse(json.load(fp=fp)["gender"])
-        except Exception as e:
-            print(f"Error occurred: {e}", file=sys.stderr)
-            print("Using possibly outdated rules", file=sys.stderr)
-            self._root_rules_bean = Root.parse(rules_data.gender()["gender"])
+        except FileNotFoundError as e:
+            raise RuntimeError(
+                f"pytrovich gender rules file not found at "
+                f"{path_to_rules_file!r}. If you are running from a source "
+                f"checkout, run `git submodule update --init --recursive`. "
+                f"If installed from PyPI, try reinstalling pytrovich."
+            ) from e
+        except (json.JSONDecodeError, KeyError) as e:
+            raise RuntimeError(
+                f"pytrovich gender rules file at {path_to_rules_file!r} is "
+                f"malformed: {e}. If installed from PyPI, try reinstalling; "
+                f"if you are pointing at a custom file, regenerate it from "
+                f"petrovich-rules upstream."
+            ) from e
 
     @staticmethod
     def _check_against_exceptions(name: Name, str_name: str) -> set:
