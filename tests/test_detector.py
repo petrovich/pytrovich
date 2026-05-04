@@ -15,11 +15,7 @@ class TestPetrovichGenderDetector:
         (
             ("Иванович", Gender.MALE),
             ("Ильинична", Gender.FEMALE),
-            pytest.param(
-                "Блаблабла",
-                Gender.ANDROGYNOUS,
-                marks=pytest.mark.xfail(reason="Issue #6"),
-            ),
+            ("Блаблабла", Gender.ANDROGYNOUS),
         ),
     )
     def test_detect_by_middlename(self, gender_detector, middlename, expected_gender):
@@ -109,24 +105,16 @@ class TestPetrovichGenderDetectorKnownIssues:
         [
             "Саша",  # legitimate Russian androgynous diminutive
             "Блаблабла",  # nonsense input
-            "",  # empty string bypasses the None-only assert
+            "",  # empty string — bypasses the None-only assert
         ],
     )
-    @pytest.mark.xfail(
-        reason=(
-            "detector.py:97 calls next(iter(joined_set)) on a possibly-empty "
-            "set when no rule matches and there are no exceptions, raising "
-            "StopIteration instead of returning Gender.ANDROGYNOUS or a "
-            "typed exception. The existing 'Блаблабла' middlename xfail "
-            "(Issue #6) is the same bug surfaced through firstname."
-        ),
-        strict=True,
-        raises=StopIteration,
-    )
-    def test_unknown_firstname_does_not_crash(self, gender_detector, firstname):
-        result = gender_detector.detect(firstname=firstname)
-        # Acceptable post-fix behaviors: ANDROGYNOUS or None.
-        assert result is None or isinstance(result, Gender)
+    def test_unknown_firstname_returns_androgynous(self, gender_detector, firstname):
+        # Regression test for Issue #6. detect() used to call
+        # next(iter(joined_set)) on a possibly-empty set, raising
+        # StopIteration when no rule matched. The fix returns
+        # Gender.ANDROGYNOUS in that case, matching the canonical Ruby
+        # contract (Petrovich.detect_gender('блаблабла') => :androgynous).
+        assert gender_detector.detect(firstname=firstname) == Gender.ANDROGYNOUS
 
     @pytest.mark.xfail(
         reason=(
@@ -140,3 +128,54 @@ class TestPetrovichGenderDetectorKnownIssues:
     def test_no_arguments_raises_value_error(self, gender_detector):
         with pytest.raises(ValueError):
             gender_detector.detect()
+
+
+class TestPetrovichGenderDetectorCaseNormalization:
+    """
+    The rules data uses lowercase Cyrillic throughout (exception lists
+    and suffix tests). Without case normalization, inputs with capital
+    letters miss exception entries (`'Савва' in {'савва'}` is False)
+    and uppercase suffix endings fail str.endswith('ов') against 'ОВ'.
+    The Ruby reference rolls a custom Cyrillic downcase
+    (lib/petrovich/unicode.rb) for this same reason.
+    """
+
+    @pytest.mark.parametrize(
+        "firstname,expected",
+        [
+            # 'савва' is in firstname.exceptions.male; without
+            # case-normalization this StopIteration'd before Issue #6
+            # was fixed, and after Issue #6 was fixed it would have
+            # silently returned ANDROGYNOUS via the no-match path.
+            ("Савва", Gender.MALE),
+            ("САВВА", Gender.MALE),
+            ("сАвВа", Gender.MALE),
+            # 'любава' is in firstname.exceptions.female.
+            ("Любава", Gender.FEMALE),
+            ("ЛЮБАВА", Gender.FEMALE),
+        ],
+    )
+    def test_capitalized_firstname_exception_matches(self, gender_detector, firstname, expected):
+        assert gender_detector.detect(firstname=firstname) == expected
+
+    @pytest.mark.parametrize(
+        "lastname,expected",
+        [
+            # 'ИВАНОВ'.endswith('ов') is False; with normalization
+            # 'иванов'.endswith('ов') matches the male suffix rule.
+            ("ИВАНОВ", Gender.MALE),
+            ("Иванов", Gender.MALE),
+            # Female surname suffix rule.
+            ("ИВАНОВА", Gender.FEMALE),
+            ("Иванова", Gender.FEMALE),
+        ],
+    )
+    def test_capitalized_lastname_suffix_matches(self, gender_detector, lastname, expected):
+        assert gender_detector.detect(lastname=lastname) == expected
+
+    def test_yo_letter_normalizes(self, gender_detector):
+        # Ё/ё is a separate Unicode codepoint from Е/е but Python's
+        # str.lower() handles it. 'лёва' is in firstname.exceptions.male,
+        # so capitalized 'Лёва' should match after normalization.
+        assert gender_detector.detect(firstname="Лёва") == Gender.MALE
+        assert gender_detector.detect(firstname="ЛЁВА") == Gender.MALE

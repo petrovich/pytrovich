@@ -81,6 +81,22 @@ class PetrovichGenderDetector:
             middlename,
         )
 
+        # Normalize case for rule lookup. The rules data uses lowercase
+        # throughout — both exception lists ('савва', 'иона', ...) and
+        # suffix tests ('ов', 'ская', 'а', ...). Without normalization
+        # an input like 'Савва' misses the exception list and an input
+        # like 'ИВАНОВ' fails str.endswith('ов'). The Ruby reference
+        # implementation rolls its own Cyrillic downcase
+        # (lib/petrovich/unicode.rb) for the same reason; Python's
+        # str.lower() handles the full Cyrillic alphabet (including Ё)
+        # correctly out of the box.
+        if firstname is not None:
+            firstname = firstname.lower()
+        if lastname is not None:
+            lastname = lastname.lower()
+        if middlename is not None:
+            middlename = middlename.lower()
+
         results_middlename, results_firstname, results_lastname = set([]), set([]), set([])
 
         if middlename:
@@ -117,20 +133,36 @@ class PetrovichGenderDetector:
 
         joined_set = results_firstname.union(results_middlename).union(results_lastname)
 
-        if len(joined_set) == 1:
-            return next(iter(joined_set))
-        else:
-            # Multiple candidates from different name parts — the library
-            # picks one (set iteration order — non-deterministic) but
-            # warns so callers can recover or surface the ambiguity.
-            logger.warning(
-                "gender prediction ambiguous for firstname=%r lastname=%r middlename=%r — candidates: %s",
+        if not joined_set:
+            # No rule and no exception matched any of the supplied name
+            # parts. Per the canonical Ruby reference implementation
+            # (Petrovich.detect_gender('блаблабла') => :androgynous,
+            # documented at rubydoc.info/gems/petrovich), the contract
+            # is to return ANDROGYNOUS rather than raise. Previously
+            # this path fell through to next(iter(empty_set)), which
+            # raised StopIteration — Issue #6.
+            logger.debug(
+                "no rule matched for firstname=%r lastname=%r middlename=%r — returning ANDROGYNOUS",
                 firstname,
                 lastname,
                 middlename,
-                joined_set,
             )
+            return Gender.ANDROGYNOUS
+
+        if len(joined_set) == 1:
             return next(iter(joined_set))
+
+        # Multiple candidates from different name parts — the library
+        # picks one (set iteration order — non-deterministic) but
+        # warns so callers can recover or surface the ambiguity.
+        logger.warning(
+            "gender prediction ambiguous for firstname=%r lastname=%r middlename=%r — candidates: %s",
+            firstname,
+            lastname,
+            middlename,
+            joined_set,
+        )
+        return next(iter(joined_set))
 
 
 if __name__ == "__main__":

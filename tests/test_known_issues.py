@@ -14,9 +14,11 @@ Issues covered (as of last update):
   * Issue #2 — Hyphenated lastname support
     https://github.com/petrovich/pytrovich/issues/2
 
-  * Issue #6 — PetrovichGenderDetector.detect crashes with StopIteration
-    on unknown names instead of returning Gender.ANDROGYNOUS
-    (referenced as the existing xfail in test_detector.py:16)
+  * Issue #6 — PetrovichGenderDetector.detect should return
+    Gender.ANDROGYNOUS for unrecognized names instead of crashing with
+    StopIteration. Resolved; tests below pin the canonical contract
+    against regression.
+    https://github.com/petrovich/pytrovich/issues/6
 
   * Issue #8 — Three reported genitive-case inflection bugs (Асадчий,
     Гремитских, Ольга). Only the Асадчий case reproduces, and only
@@ -170,51 +172,40 @@ class TestIssue2HyphenatedLastnames:
 
 class TestIssue6UnknownNameReturnsAndrogynous:
     """
-    Issue #6 (referenced as the xfail row in test_detector.py:16-19).
+    https://github.com/petrovich/pytrovich/issues/6
 
-    The contract documented in the petrovich-js reference implementation
-    README is:
+    The contract documented in the canonical Ruby reference (rubydoc.info
+    for `Petrovich.detect_gender`, stable across versions 0.1.6 and
+    0.2.1):
 
-        petrovich.detect_gender('Блаблабла') // вернет 'androgynous'
+        Если пол не был определён, метод возвращает значение androgynous
+        detect_gender('блаблабла')  # => androgynous
 
-    https://github.com/petrovich/petrovich-js/blob/master/README.md
+    pytrovich previously violated this: detect() called
+    next(iter(joined_set)) on a possibly-empty set inside the else-branch,
+    raising StopIteration on unrecognized inputs. The fix returns
+    Gender.ANDROGYNOUS in the empty-set case.
 
-    pytrovich's PetrovichGenderDetector.detect should match this contract:
-    when no rule and no exception matches the input, the result must be
-    Gender.ANDROGYNOUS. Currently detect() raises StopIteration at
-    detector.py:97 because next(iter(joined_set)) is called on an empty
-    set inside the else-branch, with no special-case for the no-match
-    situation.
+    The cases tested below cover three failure modes that all funnelled
+    into the same StopIteration:
 
-    The tests below expand the existing single-row xfail in
-    test_detector.py to cover all three name-part keyword arguments and
-    a broader set of inputs:
-
-      * 'Блаблабла' — the canonical nonsense name from petrovich-js.
+      * 'Блаблабла' — the canonical nonsense name from the reference docs.
       * 'Саша' — a legitimate Russian androgynous diminutive (short for
-        either Александр or Александра); a real-world failure mode.
-      * '' — empty string; bypasses the None-only assert at
-        detector.py:63 and reaches the same crash.
+        either Александр or Александра); after lowercasing nothing
+        matches in firstname/lastname rules so the empty-set path runs.
+      * '' — empty string. Bypasses the None-only assert at the top
+        of detect() (a separate input-validation gap, not in scope here)
+        and hits the same empty-set path.
     """
 
     UNRECOGNIZED_NAMES = [
-        "Блаблабла",  # canonical nonsense from petrovich-js README
+        "Блаблабла",  # canonical nonsense from the reference docs
         "Саша",  # legitimate androgynous diminutive
         "",  # empty string — separate input-validation gap
     ]
 
     @pytest.mark.parametrize("name", UNRECOGNIZED_NAMES)
     @pytest.mark.parametrize("name_part_kwarg", ["firstname", "lastname", "middlename"])
-    @pytest.mark.xfail(
-        strict=True,
-        raises=StopIteration,
-        reason=(
-            "Issue #6: PetrovichGenderDetector.detect raises "
-            "StopIteration on unrecognized names instead of returning "
-            "Gender.ANDROGYNOUS as documented in the petrovich-js "
-            "reference implementation."
-        ),
-    )
     def test_unrecognized_name_returns_androgynous(
         self,
         detector,
