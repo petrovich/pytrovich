@@ -1,0 +1,10 @@
+# Development and test dependencies for pytrovich.
+#
+# Install with:
+#   pip install -r requirements-dev.txt
+#
+# The runtime package (pytrovich itself) has zero dependencies.
+
+pytest>=7.0
+pytest-cov>=4.0
+pytest-benchmark>=4.0

@@ -3,12 +3,12 @@ name: CI
 on:
   push:
     branches:
-    - main
+    - master
   pull_request:
 
 jobs:
   tests:
-    name: Python ${{ matrix.python-version }}
+    name: Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
 
     strategy:
@@ -16,6 +16,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python-version:
+        - '3.6'
         - '3.7'
         - '3.8'
         - '3.9'
@@ -30,8 +31,62 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Run Tests
-      run: |
-        pip install pytest pytest-cov
-        pytest --cov
+    - name: Install dev dependencies
+      run: pip install -r requirements-dev.txt
 
+    - name: Run tests with coverage
+      # scripts/coverage.sh runs pytest with --cov, generates html/xml/term
+      # reports, and exits non-zero if coverage falls below COVERAGE_MIN
+      # (default 80%; see .coveragerc and the script for details).
+      run: bash scripts/coverage.sh
+
+    - name: Upload coverage XML
+      # Upload from a single matrix cell to avoid 6× duplicate artifacts;
+      # the XML is identical across Python versions.
+      if: matrix.python-version == '3.12'
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-xml
+        path: coverage.xml
+        if-no-files-found: warn
+
+  benchmarks:
+    name: Performance benchmarks
+    runs-on: ubuntu-latest
+    # Only run benchmarks once the test matrix is green: there's no point
+    # measuring throughput of broken code.
+    needs: tests
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Install dev dependencies
+      run: pip install -r requirements-dev.txt
+
+    - name: Run benchmarks
+      # scripts/benchmark.sh runs `pytest -m benchmark`. The --benchmark-json
+      # flag is forwarded to pytest-benchmark and captures full timing
+      # statistics + machine info into benchmark.json for archival.
+      #
+      # We deliberately do NOT enforce a regression threshold here: GitHub
+      # Actions runners have variable performance and a strict gate would
+      # produce flaky failures. Compare runs by downloading the JSON
+      # artifacts from two builds and using `pytest-benchmark compare`.
+      run: bash scripts/benchmark.sh --benchmark-json=benchmark.json
+
+    - name: Trim per-sample data from benchmark JSON
+      # pytest-benchmark records every individual sample (often >100k per
+      # test). Drop them before upload — summary stats are preserved and
+      # the file shrinks by ~99.9%.
+      run: python scripts/trim_benchmark_json.py benchmark.json
+
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results
+        path: benchmark.json
+        if-no-files-found: error

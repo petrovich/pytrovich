@@ -1,0 +1,32 @@
+[run]
+# Only measure the source package; don't follow pytest, plugins, or the test code.
+source = pytrovich
+
+# Exclude generated/data modules and trivial files from the coverage
+omit =
+    pytrovich/rules_data.py
+    pytrovich/meta.py
+    pytrovich/__init__.py
+    pytrovich/petrovich-rules/*
+
+# Branch coverage catches missed if/else branches that line coverage misses.
+branch = True
+
+[report]
+# Lines matching these patterns are not counted as missed even if untested.
+exclude_lines =
+    pragma: no cover
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+
+show_missing = True
+precision = 2
+skip_covered = False
+sort = -Cover
+
+[html]
+directory = htmlcov
+
+[xml]
+output = coverage.xml

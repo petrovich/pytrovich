@@ -1,4 +1,9 @@
 .idea
 *.xml
 *~
-*.pyc
+*.py[cio]
+.coverage
+__pycache__
+.pytest_cache
+htmlcov
+.benchmarks
