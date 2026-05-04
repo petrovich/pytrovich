@@ -26,25 +26,11 @@ Issues covered (as of last update):
 If a third issue exists in the tracker, add a class for it here.
 """
 
-import os
-
 import pytest
 
-import pytrovich
 from pytrovich.detector import PetrovichGenderDetector
 from pytrovich.enums import Case, Gender, NamePart
 from pytrovich.maker import PetrovichDeclinationMaker
-
-# Detect whether we're running against the current upstream petrovich-rules
-# (submodule initialized) or the 2020-vintage rules_data.py fallback (what
-# PyPI users get from the wheel, and what CI sees without submodule init).
-# A handful of tests below depend on this distinction.
-_UPSTREAM_RULES_PATH = os.path.join(
-    os.path.dirname(pytrovich.__file__),
-    "petrovich-rules",
-    "rules.json",
-)
-USING_UPSTREAM_RULES = os.path.exists(_UPSTREAM_RULES_PATH)
 
 
 @pytest.fixture(scope="module")
@@ -261,44 +247,27 @@ class TestIssue8GenitiveInflectionBugs:
     does not reproduce in their environment, and asked for a minimal
     repro plus the pytrovich version.
 
-    Empirical findings on this branch:
+    Empirical findings:
 
-      * "Асадчий" reproduces *only* against the bundled rules_data.py
-        (the 2020-vintage data shipped in the PyPI wheel and used as
-        the fallback when rules.json is absent). The current upstream
-        petrovich-rules produces the correct 'Асадчего'. This is a
-        rules-data-staleness symptom, structurally identical to the
-        existing 'Паша/Пашой' drift in tests/test_maker.py.
-      * "Гремитских" does NOT reproduce against either rules version;
-        the library correctly leaves it indeclinable. Locked in below
-        as a regression test.
-      * "Ольга" does NOT reproduce against either rules version (matches
-        the maintainer's observation); the library correctly returns
-        'Ольги'. Locked in below as a regression test.
-
-    The Асадчий test is conditionally xfailed when running against the
-    bundled rules so the suite stays green in that environment, and it
-    will pass (XPASS, surfacing as failure under strict) once the
-    bundled rules are refreshed — at which point the marker should be
-    removed.
+      * "Асадчий" reproduced ONLY against the 2020-vintage embedded
+        copy of the rules at pytrovich/rules_data.py, which silently
+        replaced rules.json whenever the submodule was missing. That
+        copy was removed in the same change as this comment; pytrovich
+        now reads its rules exclusively from the petrovich-rules
+        submodule's rules.json, which produces the correct 'Асадчего'.
+        Locked in below.
+      * "Гремитских" does NOT reproduce; the library correctly leaves
+        it indeclinable. Locked in below.
+      * "Ольга" does NOT reproduce (matches the maintainer's
+        observation); the library correctly returns 'Ольги'. Locked in
+        below.
     """
 
-    @pytest.mark.xfail(
-        condition=not USING_UPSTREAM_RULES,
-        strict=True,
-        reason=(
-            "Issue #8: bundled rules_data.py (2020 vintage) produces "
-            "'Асадчия' for this name; current upstream petrovich-rules "
-            "produces the correct 'Асадчего'. Refresh the bundled rules "
-            "(e.g. by regenerating rules_data.py from the submodule's "
-            "rules.json) to fix in the wheel."
-        ),
-    )
     def test_asadchiy_male_genitive(self, maker):
-        # Reference name with the same -ий pattern that does work:
-        # Касперский → Касперского; verified passing in both rule
-        # versions. The Асадчий bug is therefore a missing-exception
-        # in the older rules data, not a code-level rule mismatch.
+        # Russian morphology: lastnames ending -ий (after a soft
+        # consonant) take the adjectival genitive ending -его, like
+        # Касперский → Касперского. The companion reference test
+        # below pins that the rule itself works.
         assert (
             maker.make(
                 NamePart.LASTNAME,
