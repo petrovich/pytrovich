@@ -1,8 +1,48 @@
+"""
+Tests pinned to specific GitHub issues on petrovich/pytrovich.
+
+Each class below corresponds to one open issue in the tracker. All tests
+are marked ``xfail(strict=True)`` because the underlying issues are still
+open: when an issue is fixed, its tests will XPASS, the suite will turn
+red, and the maintainer must remove the marker (and ideally close the
+issue) in the same change. Do NOT delete these tests when an issue is
+fixed — convert ``xfail`` to plain assertions so we keep regression
+coverage.
+
+Issues covered (as of last update):
+
+  * Issue #2 — Hyphenated lastname support
+    https://github.com/petrovich/pytrovich/issues/2
+
+  * Issue #6 — PetrovichGenderDetector.detect crashes with StopIteration
+    on unknown names instead of returning Gender.ANDROGYNOUS
+    (referenced as the existing xfail in test_detector.py:16)
+
+  * Issue #8 — Three reported genitive-case inflection bugs (Асадчий,
+    Гремитских, Ольга). Only the Асадчий case reproduces, and only
+    against the bundled rules_data.py.
+    https://github.com/petrovich/pytrovich/issues/8
+
+If a third issue exists in the tracker, add a class for it here.
+"""
+import os
+
 import pytest
 
+import pytrovich
 from pytrovich.detector import PetrovichGenderDetector
 from pytrovich.enums import Case, Gender, NamePart
 from pytrovich.maker import PetrovichDeclinationMaker
+
+
+# Detect whether we're running against the current upstream petrovich-rules
+# (submodule initialized) or the 2020-vintage rules_data.py fallback (what
+# PyPI users get from the wheel, and what CI sees without submodule init).
+# A handful of tests below depend on this distinction.
+_UPSTREAM_RULES_PATH = os.path.join(
+    os.path.dirname(pytrovich.__file__), 'petrovich-rules', 'rules.json',
+)
+USING_UPSTREAM_RULES = os.path.exists(_UPSTREAM_RULES_PATH)
 
 
 @pytest.fixture(scope='module')
@@ -64,7 +104,7 @@ class TestIssue2HyphenatedLastnames:
         # (lastname, gender, case, expected_correct_output)
         # Бонч is foreign-origin (German "Bontsch") and conventionally
         # indeclinable in Russian — only the second part inflects.
-        ('Бонч-Бруевич', Gender.MALE, Case.GENITIVE, 'Бонч-Бруевича'),
+        ('Бонч-Бруевич', Gender.MALE, Case.GENITIVE,     'Бонч-Бруевича'),
         ('Бонч-Бруевич', Gender.MALE, Case.INSTRUMENTAL, 'Бонч-Бруевичем'),
     ]
 
@@ -79,14 +119,14 @@ class TestIssue2HyphenatedLastnames:
     @pytest.mark.xfail(
         strict=True,
         reason=(
-                "Issue #2: hyphenated lastnames are not split before the "
-                "suffix rule is applied; only the trailing component looks "
-                "inflected. The expected behavior is the 'naive' split-and-"
-                "inflect-each from the issue body."
+            "Issue #2: hyphenated lastnames are not split before the "
+            "suffix rule is applied; only the trailing component looks "
+            "inflected. The expected behavior is the 'naive' split-and-"
+            "inflect-each from the issue body."
         ),
     )
     def test_simple_hyphenated_inflects_each_part(
-            self, maker, lastname, case_to_use,
+        self, maker, lastname, case_to_use,
     ):
         # The library already knows how to inflect the individual parts
         # of these names. The bug is purely in not splitting on hyphens.
@@ -106,7 +146,7 @@ class TestIssue2HyphenatedLastnames:
         NASTY_EXCEPTIONS_FROM_ISSUE,
     )
     def test_hyphenated_with_indeclinable_first_part(
-            self, maker, lastname, gender, case_to_use, expected,
+        self, maker, lastname, gender, case_to_use, expected,
     ):
         # Subtle case: this test is *not* marked xfail. The library
         # currently produces the linguistically correct output for these
@@ -161,8 +201,8 @@ class TestIssue6UnknownNameReturnsAndrogynous:
 
     UNRECOGNIZED_NAMES = [
         'Блаблабла',  # canonical nonsense from petrovich-js README
-        'Саша',  # legitimate androgynous diminutive
-        '',  # empty string — separate input-validation gap
+        'Саша',       # legitimate androgynous diminutive
+        '',           # empty string — separate input-validation gap
     ]
 
     @pytest.mark.parametrize('name', UNRECOGNIZED_NAMES)
@@ -171,14 +211,127 @@ class TestIssue6UnknownNameReturnsAndrogynous:
         strict=True,
         raises=StopIteration,
         reason=(
-                "Issue #6: PetrovichGenderDetector.detect raises "
-                "StopIteration on unrecognized names instead of returning "
-                "Gender.ANDROGYNOUS as documented in the petrovich-js "
-                "reference implementation."
+            "Issue #6: PetrovichGenderDetector.detect raises "
+            "StopIteration on unrecognized names instead of returning "
+            "Gender.ANDROGYNOUS as documented in the petrovich-js "
+            "reference implementation."
         ),
     )
     def test_unrecognized_name_returns_androgynous(
-            self, detector, name_part_kwarg, name,
+        self, detector, name_part_kwarg, name,
     ):
         result = detector.detect(**{name_part_kwarg: name})
         assert result == Gender.ANDROGYNOUS
+
+
+# ---------------------------------------------------------------------------
+# Issue #8 — Specific genitive-case inflection bugs (data-dependent)
+# ---------------------------------------------------------------------------
+
+class TestIssue8GenitiveInflectionBugs:
+    """
+    https://github.com/petrovich/pytrovich/issues/8
+
+    Reporter (@Star23397, 2025-11-17) listed three specific incorrect
+    inflections from nominative to genitive:
+
+    1. Male lastname "Асадчий"  → got 'Асадчия',     expected 'Асадчего'
+       (cf. Касперский → Касперского; same -ий ending)
+    2. Male lastname "Гремитских" should be indeclinable, but reportedly
+       inflects to 'Гремитскиха'.
+    3. Female firstname "Ольга" → got 'Ольгы',       expected 'Ольги'.
+
+    Maintainer (@alexeyev, 2025-11-27) commented that the "Ольга" case
+    does not reproduce in their environment, and asked for a minimal
+    repro plus the pytrovich version.
+
+    Empirical findings on this branch:
+
+      * "Асадчий" reproduces *only* against the bundled rules_data.py
+        (the 2020-vintage data shipped in the PyPI wheel and used as
+        the fallback when rules.json is absent). The current upstream
+        petrovich-rules produces the correct 'Асадчего'. This is a
+        rules-data-staleness symptom, structurally identical to the
+        existing 'Паша/Пашой' drift in tests/test_maker.py.
+      * "Гремитских" does NOT reproduce against either rules version;
+        the library correctly leaves it indeclinable. Locked in below
+        as a regression test.
+      * "Ольга" does NOT reproduce against either rules version (matches
+        the maintainer's observation); the library correctly returns
+        'Ольги'. Locked in below as a regression test.
+
+    The Асадчий test is conditionally xfailed when running against the
+    bundled rules so the suite stays green in that environment, and it
+    will pass (XPASS, surfacing as failure under strict) once the
+    bundled rules are refreshed — at which point the marker should be
+    removed.
+    """
+
+    @pytest.mark.xfail(
+        condition=not USING_UPSTREAM_RULES,
+        strict=True,
+        reason=(
+            "Issue #8: bundled rules_data.py (2020 vintage) produces "
+            "'Асадчия' for this name; current upstream petrovich-rules "
+            "produces the correct 'Асадчего'. Refresh the bundled rules "
+            "(e.g. by regenerating rules_data.py from the submodule's "
+            "rules.json) to fix in the wheel."
+        ),
+    )
+    def test_asadchiy_male_genitive(self, maker):
+        # Reference name with the same -ий pattern that does work:
+        # Касперский → Касперского; verified passing in both rule
+        # versions. The Асадчий bug is therefore a missing-exception
+        # in the older rules data, not a code-level rule mismatch.
+        assert maker.make(
+            NamePart.LASTNAME, Gender.MALE, Case.GENITIVE, "Асадчий",
+        ) == "Асадчего"
+
+    def test_kasperskiy_male_genitive_reference(self, maker):
+        # Reference / sanity check: same -ий pattern as Асадчий, works
+        # correctly in both rules versions. If this ever regresses, the
+        # Асадчий fix would also need re-checking.
+        assert maker.make(
+            NamePart.LASTNAME, Gender.MALE, Case.GENITIVE, "Касперский",
+        ) == "Касперского"
+
+    @pytest.mark.parametrize('case_to_use', [
+        Case.GENITIVE,
+        Case.DATIVE,
+        Case.ACCUSATIVE,
+        Case.INSTRUMENTAL,
+        Case.PREPOSITIONAL,
+    ])
+    def test_gremitskih_is_indeclinable_in_all_cases(self, maker, case_to_use):
+        # Reported in #8 as inflecting to 'Гремитскиха' — could not be
+        # reproduced. Russian -их surnames (archaic genitive plural form)
+        # are conventionally indeclinable for both genders in all cases.
+        # Locked in across every case so accidental regression is caught
+        # immediately.
+        assert maker.make(
+            NamePart.LASTNAME, Gender.MALE, case_to_use, "Гремитских",
+        ) == "Гремитских"
+
+    @pytest.mark.parametrize('lastname', [
+        "Чёрных",
+        "Седых",
+        "Коротких",
+    ])
+    def test_other_indeclinable_ih_surnames(self, maker, lastname):
+        # Sibling indeclinable -их surnames; if Гремитских ever regresses,
+        # one of these probably will too. Locked in as a small regression
+        # cohort.
+        assert maker.make(
+            NamePart.LASTNAME, Gender.MALE, Case.GENITIVE, lastname,
+        ) == lastname
+
+    def test_olga_female_firstname_genitive(self, maker):
+        # Reported in #8 as 'Ольгы' — could not be reproduced (maintainer
+        # confirmed, and verified empirically here against both bundled
+        # and upstream rules). The expected genitive is 'Ольги': after
+        # the consonant 'г', Russian spelling rules require 'и' rather
+        # than 'ы'. Locked in to catch any future rule-engine regression
+        # that might break the consonant-ending rule.
+        assert maker.make(
+            NamePart.FIRSTNAME, Gender.FEMALE, Case.GENITIVE, "Ольга",
+        ) == "Ольги"

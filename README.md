@@ -1,7 +1,7 @@
 ![Pytrovich](pytrovich.png)
 ==========================================
 
-__pytrovich__ is a Python 3.8+ port of [petrovich library](https://github.com/petrovich) which inflects Russian names 
+__pytrovich__ is a Python 3.9+ port of [petrovich library](https://github.com/petrovich) which inflects Russian names 
 to a given grammatical case. It supports first names, last names and middle names inflections. Since version 0.0.2,
 gender detection is also available. 
 
