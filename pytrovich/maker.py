@@ -87,12 +87,8 @@ class PetrovichDeclinationMaker:
             ("middlename", NamePart.MIDDLENAME),
         ):
             name_bean = getattr(self._root_rules_bean, part_attr)
-            self._exception_indices[part_enum] = _RuleSuffixIndex(
-                name_bean.exceptions if name_bean else None
-            )
-            self._suffix_indices[part_enum] = _RuleSuffixIndex(
-                name_bean.suffixes if name_bean else None
-            )
+            self._exception_indices[part_enum] = _RuleSuffixIndex(name_bean.exceptions if name_bean else None)
+            self._suffix_indices[part_enum] = _RuleSuffixIndex(name_bean.suffixes if name_bean else None)
 
     def make(self, name_part: NamePart, gender: Gender, case_to_use: Case, original_name: str) -> str:
 
