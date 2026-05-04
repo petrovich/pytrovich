@@ -217,7 +217,4 @@ class TestPetrovichDeclinationMakerCaseNormalization:
         # Pre-fix, the all-caps form fell through unchanged because
         # the suffix rule was case-sensitive. Now it inflects, with
         # the original case preserved on the unmodified portion.
-        assert (
-            maker.make(NamePart.LASTNAME, Gender.MALE, Case.GENITIVE, "ИВАНОВ-ПЕТРОВ")
-            == "ИВАНОВ-ПЕТРОВа"
-        )
+        assert maker.make(NamePart.LASTNAME, Gender.MALE, Case.GENITIVE, "ИВАНОВ-ПЕТРОВ") == "ИВАНОВ-ПЕТРОВа"

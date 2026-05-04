@@ -113,9 +113,7 @@ class PetrovichDeclinationMaker:
         exception_rule_bean: Rule = self._exception_indices[index_part].find_first_match(
             lookup_name, gender_label
         )
-        suffix_rule_bean: Rule = self._suffix_indices[index_part].find_first_match(
-            lookup_name, gender_label
-        )
+        suffix_rule_bean: Rule = self._suffix_indices[index_part].find_first_match(lookup_name, gender_label)
 
         if exception_rule_bean and exception_rule_bean.gender == gender.str():
             rule_to_use: Rule = exception_rule_bean
