@@ -94,16 +94,27 @@ class PetrovichDeclinationMaker:
 
         result = original_name
 
+        # Lowercase for rule lookup. The rules data uses lowercase
+        # throughout (suffix tests like 'ов', 'ская'; exception names
+        # like 'пётр'), so without this an input like 'ИВАНОВ' would
+        # fail the suffix match and silently return unchanged, and
+        # 'Пётр' would miss the explicit Ё→Е alternation exception.
+        # original_name is preserved for apply_mod2name below so the
+        # output's case matches the input's: 'Иван' → 'Ивана', not
+        # 'Иван' → 'ивана'. Mirrors the same treatment in
+        # PetrovichGenderDetector.detect.
+        lookup_name = original_name.lower()
+
         # Index lookup is keyed by NamePart; the unknown-NamePart
         # else-branch above handed back middlename's name_bean, so
         # mirror that here for the index.
         index_part = name_part if name_part in self._exception_indices else NamePart.MIDDLENAME
         gender_label = gender.str()
         exception_rule_bean: Rule = self._exception_indices[index_part].find_first_match(
-            original_name, gender_label
+            lookup_name, gender_label
         )
         suffix_rule_bean: Rule = self._suffix_indices[index_part].find_first_match(
-            original_name, gender_label
+            lookup_name, gender_label
         )
 
         if exception_rule_bean and exception_rule_bean.gender == gender.str():
