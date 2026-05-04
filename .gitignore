@@ -8,3 +8,5 @@ __pycache__
 htmlcov
 .benchmarks
 .ruff_cache
+*.egg-info
+dist
