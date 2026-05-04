@@ -3,7 +3,7 @@ import logging
 from os import path
 
 from pytrovich.enums import Case, Gender, NamePart
-from pytrovich.rule_models import Name, Root, Rule
+from pytrovich.rule_models import Root, Rule
 from pytrovich.suffix_trie import SuffixTrie
 
 logger = logging.getLogger(__name__)
@@ -97,15 +97,6 @@ class PetrovichDeclinationMaker:
     def make(self, name_part: NamePart, gender: Gender, case_to_use: Case, original_name: str) -> str:
 
         result = original_name
-
-        if name_part == NamePart.FIRSTNAME:
-            name_bean: Name = self._root_rules_bean.firstname
-        elif name_part == NamePart.LASTNAME:
-            name_bean: Name = self._root_rules_bean.lastname
-        elif name_part == NamePart.MIDDLENAME:
-            name_bean: Name = self._root_rules_bean.middlename
-        else:
-            name_bean: Name = self._root_rules_bean.middlename
 
         # Index lookup is keyed by NamePart; the unknown-NamePart
         # else-branch above handed back middlename's name_bean, so
