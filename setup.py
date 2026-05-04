@@ -10,13 +10,13 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setup(
     name="pytrovich",
     packages=setuptools.find_packages(),
-    version="0.0.2",
+    version="0.0.5",
     description="pytrovich: a Python port of an inflector for Russian anthroponyms developed by petrovich team: "
                 "https://github.com/petrovich",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Anton Alekseev",
-    author_email="anton.m.alexeye@gmail.com",
+    author_email="anton.m.alexeyev+petrovich@gmail.com",
     url="https://github.com/petrovich/pytrovich",
     keywords=["nlp", "morphology", "russian language"],
     classifiers=[
