@@ -1,8 +1,11 @@
 import json
+import logging
 from os import path
 
 from pytrovich.enums import Case, Gender, NamePart
 from pytrovich.rule_models import Name, Root, Rule
+
+logger = logging.getLogger(__name__)
 
 
 class PetrovichDeclinationMaker:
@@ -14,6 +17,7 @@ class PetrovichDeclinationMaker:
         try:
             with open(path_to_rules_file, encoding="utf-8") as fp:
                 self._root_rules_bean = Root.parse(json.load(fp=fp))
+            logger.debug("loaded declination rules from %s", path_to_rules_file)
         except FileNotFoundError as e:
             raise RuntimeError(
                 f"pytrovich rules file not found at {path_to_rules_file!r}. "
@@ -51,14 +55,34 @@ class PetrovichDeclinationMaker:
 
         if exception_rule_bean and exception_rule_bean.gender == gender.str():
             rule_to_use: Rule = exception_rule_bean
+            logger.debug("using exception rule for %r: %s", original_name, rule_to_use)
         elif suffix_rule_bean and suffix_rule_bean.gender == gender.str():
             rule_to_use: Rule = suffix_rule_bean
+            logger.debug("using suffix rule for %r: %s", original_name, rule_to_use)
         else:
             rule_to_use: Rule = exception_rule_bean if exception_rule_bean else suffix_rule_bean
+            if rule_to_use is None:
+                # No rule matched — name passes through unchanged. This is
+                # frequently a silent miss (foreign names, typos); log so
+                # callers running with DEBUG can spot why a name didn't
+                # decline.
+                logger.debug(
+                    "no rule matched for %r (name_part=%s, gender=%s)",
+                    original_name,
+                    name_part,
+                    gender,
+                )
 
         if rule_to_use:
             mod2apply: str = rule_to_use.mods[case_to_use.value]
             result = PetrovichDeclinationMaker.apply_mod2name(mod2apply=mod2apply, name=original_name)
+            logger.debug(
+                "applied mod %r to %r → %r (case=%s)",
+                mod2apply,
+                original_name,
+                result,
+                case_to_use,
+            )
 
         return result
 
