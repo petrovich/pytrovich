@@ -120,3 +120,53 @@ jobs:
         name: benchmark-results
         path: benchmark.json
         if-no-files-found: error
+
+
+  evaluate:
+    name: Accuracy evaluation
+    runs-on: ubuntu-latest
+    # Mirrors petrovich-ruby's `rake evaluate`: run the inflector and
+    # gender detector against the petrovich-eval dataset (~250k rows
+    # combined) and surface per-bucket accuracy. Runs on every push
+    # to keep accuracy numbers visible in CI; the regression gate
+    # against eval/baseline.json fails the job on any > 0.9 pp drop
+    # in any (gender, case) bucket.
+    needs: tests
+
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        submodules: recursive
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install package
+      run: pip install -e .
+
+    - name: Evaluate inflection (rules)
+      run: |
+        python scripts/evaluate.py rules \
+          --regression-against eval-baseline.rules.json \
+          --tolerance 0.9 \
+          --errors errors.rules.tsv
+
+    - name: Evaluate gender detection
+      run: |
+        python scripts/evaluate.py gender \
+          --regression-against eval-baseline.gender.json \
+          --tolerance 0.9 \
+          --errors errors.gender.tsv
+
+    - name: Upload error TSVs
+      # Useful for inspecting which lemmas degraded vs the baseline
+      # when the regression gate fires.
+      if: always()
+      uses: actions/upload-artifact@v5
+      with:
+        name: evaluation-errors
+        path: |
+          errors.rules.tsv
+          errors.gender.tsv
+        if-no-files-found: warn
