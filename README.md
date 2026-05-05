@@ -60,27 +60,6 @@ E.g. if `pytrovich` fails on `PetrovichDeclinationMaker` creation,
 one may consider downloading `rules.json` directly from 
 [petrovich-rules repo](https://github.com/petrovich/petrovich-rules) as a fix (please create an issue if that actually happens).
 
-### How to cite
-
-Not neccessary, but greatly appreciated, if you use this work.
-
-```latex
-@misc{Pytrovich,
-  title     = {{petrovich/pytrovich: Python3 port of Petrovich, an inflector for Russian anthroponyms}},
-  year      = {2020},
-  url       = {https://github.com/petrovich/pytrovich},
-  language  = {english},
-}
-```
-
-### More info
-
-For more information on the project please refer to other [petrovich](https://github.com/petrovich/) repos.
-
-### TODO
-
-- evaluation based on [petrovich-eval](https://github.com/petrovich/petrovich-eval/)
-
 ## Accuracy
 
 pytrovich is benchmarked against the [petrovich-eval](https://github.com/petrovich/petrovich-eval) datasets, which together contain ~250k gold-standard rows from open Russian dictionaries.
@@ -114,6 +93,23 @@ python scripts/evaluate.py rules \
 Per-bucket accuracy is printed and a TSV of every error (lemma, expected, actual) is written to `errors.tsv` / `errors.gender.tsv`. The CI workflow uploads these as artifacts on every run.
 
 The accuracy ceiling is dictated by what the rule-based approach can express; the firstname-gender number in particular is suppressed by short androgynous diminutives (Саша, Женя, etc.) that the library deliberately classifies as `ANDROGYNOUS` rather than guessing.
+
+### How to cite
+
+Not neccessary, but greatly appreciated, if you use this work.
+
+```latex
+@misc{Pytrovich,
+  title     = {{petrovich/pytrovich: Python3 port of Petrovich, an inflector for Russian anthroponyms}},
+  year      = {2020},
+  url       = {https://github.com/petrovich/pytrovich},
+  language  = {english},
+}
+```
+
+### More info
+
+For more information on the project please refer to other [petrovich](https://github.com/petrovich/) repos.
 
 ## License
 
