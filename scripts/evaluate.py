@@ -38,29 +38,13 @@ and exits 0 (so it doesn't break CI on a fresh clone).
 import argparse
 import csv
 import json
-import os
 import sys
 from collections import defaultdict
 from pathlib import Path
 
-# Eval reproducibility. PetrovichGenderDetector.detect() resolves
-# multi-candidate matches with `next(iter(joined_set))`, whose result
-# depends on Python's randomized hash seed. That's fine for a single
-# library call, but it makes the aggregate accuracy numbers below
-# flap by ~0.5 pp between runs and breaks regression detection. Pin
-# the seed before the detector is constructed by re-execing under
-# PYTHONHASHSEED=0 if it isn't already set.
-#
-# This shouldn't be needed once the detector has a stable
-# tiebreaker (sorted by enum value, or "first matched", or similar);
-# this re-exec dance is a defensible workaround in the meantime.
-if os.environ.get("PYTHONHASHSEED") != "0":
-    os.environ["PYTHONHASHSEED"] = "0"
-    os.execvpe(sys.executable, [sys.executable, *sys.argv], os.environ)
-
-from pytrovich.detector import PetrovichGenderDetector  # noqa: E402
-from pytrovich.enums import Case, Gender, NamePart  # noqa: E402
-from pytrovich.maker import PetrovichDeclinationMaker  # noqa: E402
+from pytrovich.detector import PetrovichGenderDetector
+from pytrovich.enums import Case, Gender, NamePart
+from pytrovich.maker import PetrovichDeclinationMaker
 
 # Mapping from petrovich-eval grammeme tags to pytrovich enum values.
 # Source: the OpenCorpora-derived TSVs use abbreviations from the

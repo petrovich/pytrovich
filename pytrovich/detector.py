@@ -9,6 +9,22 @@ from pytrovich.suffix_trie import SuffixTrie
 logger = logging.getLogger(__name__)
 
 
+def _pick(candidates):
+    """
+    Deterministically choose one Gender from a non-empty iterable of
+    candidates. Genders are compared by their integer enum values
+    (MALE=0, FEMALE=1, ANDROGYNOUS=2), so a definite gender always
+    wins over ANDROGYNOUS — which matches the existing intent of the
+    surrounding code in detect() and replaces the previous reliance
+    on Python's randomized set iteration order. Tied definite
+    genders fall back to MALE-before-FEMALE; that case only arises
+    in the multi-candidate joined_set branch where one of the two is
+    going to be wrong by definition, and the caller has already
+    logged a WARNING about the ambiguity.
+    """
+    return min(candidates, key=lambda g: g.value)
+
+
 class _GenderSuffixIndex:
     """
     Combines all male / female / androgynous suffix patterns for one
@@ -143,8 +159,15 @@ class PetrovichGenderDetector:
             results_middlename.update(self._suffix_indices["middlename"].detect_genders(middlename))
             logger.debug("middlename %r matched %s", middlename, results_middlename)
 
-            if len(results_middlename) > 0 and next(iter(results_middlename)) != Gender.ANDROGYNOUS:
-                return next(iter(results_middlename))
+            # Middlename is the strongest signal: Russian patronymics
+            # are gender-specific by construction (Иванович vs
+            # Ивановна). If matching produced any definite gender,
+            # take it and stop. Previously this used next(iter(...))
+            # twice and could mis-fire on ANDROGYNOUS even when a
+            # definite match was also present, by picking ANDRO first.
+            non_andro = results_middlename - {Gender.ANDROGYNOUS}
+            if non_andro:
+                return _pick(non_andro)
 
         if firstname:
             results_firstname.update(
@@ -160,7 +183,7 @@ class PetrovichGenderDetector:
 
         if firstname and lastname:
             if results_firstname and results_lastname:
-                fn, ln = next(iter(results_firstname)), next(iter(results_lastname))
+                fn, ln = _pick(results_firstname), _pick(results_lastname)
                 if fn != Gender.ANDROGYNOUS and ln == Gender.ANDROGYNOUS:
                     return fn
                 if ln != Gender.ANDROGYNOUS and fn == Gender.ANDROGYNOUS:
@@ -185,11 +208,13 @@ class PetrovichGenderDetector:
             return Gender.ANDROGYNOUS
 
         if len(joined_set) == 1:
-            return next(iter(joined_set))
+            return _pick(joined_set)
 
-        # Multiple candidates from different name parts — the library
-        # picks one (set iteration order — non-deterministic) but
-        # warns so callers can recover or surface the ambiguity.
+        # Multiple candidates from different name parts — _pick
+        # deterministically prefers a definite gender over
+        # ANDROGYNOUS (and falls back to MALE-before-FEMALE when
+        # both are definite, an inherently uncertain case the
+        # caller can recover from via the WARNING below).
         logger.warning(
             "gender prediction ambiguous for firstname=%r lastname=%r middlename=%r — candidates: %s",
             firstname,
@@ -197,7 +222,7 @@ class PetrovichGenderDetector:
             middlename,
             joined_set,
         )
-        return next(iter(joined_set))
+        return _pick(joined_set)
 
 
 if __name__ == "__main__":
