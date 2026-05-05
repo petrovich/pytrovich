@@ -10,3 +10,4 @@ htmlcov
 .ruff_cache
 *.egg-info
 dist
+*.patch
