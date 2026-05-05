@@ -84,16 +84,21 @@ class TestPetrovichDeclinationMakerCoverage:
 
     def test_name_with_yo_letter(self, maker):
         # Russian morphology shifts 'ё' to 'е' in oblique cases of 'Пётр'
-        # (correct genitive: 'Петра'). The library does not perform this
-        # alternation, so the current output is 'Пётра'. Locking it in.
-        assert maker.make(NamePart.FIRSTNAME, Gender.MALE, Case.GENITIVE, "Пётр") == "Пётра"
+        # (correct genitive: 'Петра'). The rules data ships an explicit
+        # exception encoding this alternation. Before case-normalization,
+        # the library couldn't find it (case-sensitive lookup against
+        # the lowercase exception list), fell through to the generic
+        # '-р' suffix rule, and produced the incorrect 'Пётра'.
+        assert maker.make(NamePart.FIRSTNAME, Gender.MALE, Case.GENITIVE, "Пётр") == "Петра"
 
-    def test_indeclinable_foreign_lastname_is_currently_inflected(self, maker):
-        # 'Дюма' is conventionally indeclinable in Russian for both genders.
-        # The library inflects it via the 'а'-suffix rule, producing 'Дюмы'.
-        # This is a rules-data limitation; locking in current behavior.
-        assert maker.make(NamePart.LASTNAME, Gender.MALE, Case.GENITIVE, "Дюма") == "Дюмы"
-        assert maker.make(NamePart.LASTNAME, Gender.FEMALE, Case.GENITIVE, "Дюма") == "Дюмы"
+    def test_indeclinable_foreign_lastname(self, maker):
+        # 'Дюма' is conventionally indeclinable in Russian for both
+        # genders, and the rules data encodes that with an exception
+        # whose mods are all '.' (keep-as-is). Before case-normalization
+        # the library missed that exception and fell through to the
+        # 'а'-suffix rule, incorrectly producing 'Дюмы'.
+        assert maker.make(NamePart.LASTNAME, Gender.MALE, Case.GENITIVE, "Дюма") == "Дюма"
+        assert maker.make(NamePart.LASTNAME, Gender.FEMALE, Case.GENITIVE, "Дюма") == "Дюма"
 
     def test_empty_string_returns_empty_string(self, maker):
         # No input validation: empty name returns empty string silently.
@@ -161,3 +166,55 @@ class TestPetrovichDeclinationMakerKnownIssues:
     def test_none_name_part_should_raise(self, maker):
         with pytest.raises((TypeError, ValueError)):
             maker.make(None, Gender.MALE, Case.GENITIVE, "Иван")
+
+
+class TestPetrovichDeclinationMakerCaseNormalization:
+    """
+    The rules data uses lowercase Cyrillic throughout (suffix tests
+    'ов', 'ская', exception names 'пётр', 'дюма'). The maker now
+    lowercases input for rule lookup so all-caps and mixed-case inputs
+    inflect correctly, while keeping the original casing in the output
+    via apply_mod2name. Mirrors the same fix in
+    PetrovichGenderDetector.detect.
+    """
+
+    @pytest.mark.parametrize(
+        "input_name,expected",
+        [
+            # Title Case: regression watch — must keep producing the
+            # same output as before the fix.
+            ("Иван", "Ивана"),
+            ("Иванов", "Иванова"),
+            ("Касперский", "Касперского"),
+            # All-caps: previously fell through unchanged because
+            # 'ИВАНОВ'.endswith('ов') is False. Now the suffix rule
+            # fires and the appended modifier is preserved.
+            ("ИВАН", "ИВАНа"),
+            ("ИВАНОВ", "ИВАНОВа"),
+            # Mixed case is unusual but defensible.
+            ("иВаН", "иВаНа"),
+        ],
+    )
+    def test_case_variation_inflects(self, maker, input_name, expected):
+        np = NamePart.FIRSTNAME if input_name.lower() == "иван" else NamePart.LASTNAME
+        assert maker.make(np, Gender.MALE, Case.GENITIVE, input_name) == expected
+
+    def test_uppercase_yo_finds_lowercase_exception(self):
+        # 'ПЁТР'.lower() == 'пётр', which is in the rules-data
+        # exception list. The mods for that exception are character
+        # replacements ('---етра'), so the output is the literal
+        # lowercase from the rule — the trailing case-preservation
+        # only applies to *append* mods, not to character-replacement.
+        # That's a quirk of how the rules data encodes exceptions,
+        # not the case-normalization fix.
+        from pytrovich.maker import PetrovichDeclinationMaker
+
+        m = PetrovichDeclinationMaker()
+        assert m.make(NamePart.FIRSTNAME, Gender.MALE, Case.GENITIVE, "ПЁТР") == "Петра"
+        assert m.make(NamePart.FIRSTNAME, Gender.MALE, Case.GENITIVE, "Пётр") == "Петра"
+
+    def test_hyphenated_uppercase_inflects(self, maker):
+        # Pre-fix, the all-caps form fell through unchanged because
+        # the suffix rule was case-sensitive. Now it inflects, with
+        # the original case preserved on the unmodified portion.
+        assert maker.make(NamePart.LASTNAME, Gender.MALE, Case.GENITIVE, "ИВАНОВ-ПЕТРОВ") == "ИВАНОВ-ПЕТРОВа"

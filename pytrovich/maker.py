@@ -3,9 +3,52 @@ import logging
 from os import path
 
 from pytrovich.enums import Case, Gender, NamePart
-from pytrovich.rule_models import Name, Root, Rule
+from pytrovich.rule_models import Root, Rule
+from pytrovich.suffix_trie import SuffixTrie
 
 logger = logging.getLogger(__name__)
+
+_ANDROGYNOUS_LABEL = Gender.ANDROGYNOUS.str()
+
+
+class _RuleSuffixIndex:
+    """
+    Wraps a SuffixTrie + the original ordered rule list to implement
+    'find the first rule (by registration order) whose .test contains
+    a suffix of *name* and whose .gender is compatible with the
+    requested gender'.
+
+    Two trie inserts share a hash-tree path when their suffixes share
+    a tail (e.g. -ов and -нов collapse on the trailing 'в'), which is
+    where the algorithmic win over the previous linear scan comes
+    from.
+    """
+
+    __slots__ = ("_rules", "_trie")
+
+    def __init__(self, rules):
+        self._rules = list(rules) if rules else []
+        self._trie = SuffixTrie()
+        for index, rule in enumerate(self._rules):
+            for test in rule.test:
+                self._trie.insert(test, index)
+
+    def find_first_match(self, name: str, gender_label: str):
+        """
+        Return the Rule with the lowest registration-order index that
+        (a) has a test value matching as a suffix of *name* and
+        (b) has gender == gender_label or gender == 'androgynous'.
+        Returns None if no such rule exists.
+        """
+        best_index = None
+        rules = self._rules
+        for index in self._trie.find_all_matches(name):
+            if best_index is not None and index >= best_index:
+                continue
+            rule_gender = rules[index].gender
+            if rule_gender == gender_label or rule_gender == _ANDROGYNOUS_LABEL:
+                best_index = index
+        return rules[best_index] if best_index is not None else None
 
 
 class PetrovichDeclinationMaker:
@@ -33,25 +76,44 @@ class PetrovichDeclinationMaker:
                 f"from petrovich-rules upstream."
             ) from e
 
+        # Pre-build suffix tries for each (name_part, kind). Done once at
+        # construction; per-call lookup is then O(L) in the matched
+        # suffix length rather than O(n) in the rule count.
+        self._exception_indices = {}
+        self._suffix_indices = {}
+        for part_attr, part_enum in (
+            ("firstname", NamePart.FIRSTNAME),
+            ("lastname", NamePart.LASTNAME),
+            ("middlename", NamePart.MIDDLENAME),
+        ):
+            name_bean = getattr(self._root_rules_bean, part_attr)
+            self._exception_indices[part_enum] = _RuleSuffixIndex(name_bean.exceptions if name_bean else None)
+            self._suffix_indices[part_enum] = _RuleSuffixIndex(name_bean.suffixes if name_bean else None)
+
     def make(self, name_part: NamePart, gender: Gender, case_to_use: Case, original_name: str) -> str:
 
         result = original_name
 
-        if name_part == NamePart.FIRSTNAME:
-            name_bean: Name = self._root_rules_bean.firstname
-        elif name_part == NamePart.LASTNAME:
-            name_bean: Name = self._root_rules_bean.lastname
-        elif name_part == NamePart.MIDDLENAME:
-            name_bean: Name = self._root_rules_bean.middlename
-        else:
-            name_bean: Name = self._root_rules_bean.middlename
+        # Lowercase for rule lookup. The rules data uses lowercase
+        # throughout (suffix tests like 'ов', 'ская'; exception names
+        # like 'пётр'), so without this an input like 'ИВАНОВ' would
+        # fail the suffix match and silently return unchanged, and
+        # 'Пётр' would miss the explicit Ё→Е alternation exception.
+        # original_name is preserved for apply_mod2name below so the
+        # output's case matches the input's: 'Иван' → 'Ивана', not
+        # 'Иван' → 'ивана'. Mirrors the same treatment in
+        # PetrovichGenderDetector.detect.
+        lookup_name = original_name.lower()
 
-        exception_rule_bean: Rule = PetrovichDeclinationMaker.find_in_rule_bean_list(
-            name_bean.exceptions, gender, original_name
+        # Index lookup is keyed by NamePart; the unknown-NamePart
+        # else-branch above handed back middlename's name_bean, so
+        # mirror that here for the index.
+        index_part = name_part if name_part in self._exception_indices else NamePart.MIDDLENAME
+        gender_label = gender.str()
+        exception_rule_bean: Rule = self._exception_indices[index_part].find_first_match(
+            lookup_name, gender_label
         )
-        suffix_rule_bean: Rule = PetrovichDeclinationMaker.find_in_rule_bean_list(
-            name_bean.suffixes, gender, original_name
-        )
+        suffix_rule_bean: Rule = self._suffix_indices[index_part].find_first_match(lookup_name, gender_label)
 
         if exception_rule_bean and exception_rule_bean.gender == gender.str():
             rule_to_use: Rule = exception_rule_bean

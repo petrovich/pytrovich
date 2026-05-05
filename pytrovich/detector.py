@@ -4,8 +4,35 @@ from os import path
 
 from pytrovich.enums import Gender
 from pytrovich.gender_models import Name, Root
+from pytrovich.suffix_trie import SuffixTrie
 
 logger = logging.getLogger(__name__)
+
+
+class _GenderSuffixIndex:
+    """
+    Combines all male / female / androgynous suffix patterns for one
+    name part into a single SuffixTrie tagged with the resulting
+    Gender. One traversal yields the set of genders matched, replacing
+    three separate linear scans (one per gender) in the previous
+    implementation.
+    """
+
+    __slots__ = ("_trie",)
+
+    def __init__(self, name_obj):
+        self._trie = SuffixTrie()
+        suffixes = name_obj.suffixes if name_obj is not None else None
+        if suffixes is not None:
+            for s in suffixes.male or ():
+                self._trie.insert(s, Gender.MALE)
+            for s in suffixes.female or ():
+                self._trie.insert(s, Gender.FEMALE)
+            for s in suffixes.andro or ():
+                self._trie.insert(s, Gender.ANDROGYNOUS)
+
+    def detect_genders(self, str_name: str) -> set:
+        return set(self._trie.find_all_matches(str_name))
 
 
 class PetrovichGenderDetector:
@@ -30,6 +57,16 @@ class PetrovichGenderDetector:
                 f"if you are pointing at a custom file, regenerate it from "
                 f"petrovich-rules upstream."
             ) from e
+
+        # Pre-build a suffix trie for each name part. Per-call
+        # detection then collapses three separate per-gender linear
+        # scans into one O(L) trie traversal that returns the set of
+        # matched genders directly.
+        self._suffix_indices = {
+            "firstname": _GenderSuffixIndex(self._root_rules_bean.firstname),
+            "lastname": _GenderSuffixIndex(self._root_rules_bean.lastname),
+            "middlename": _GenderSuffixIndex(self._root_rules_bean.middlename),
+        }
 
     @staticmethod
     def _check_against_exceptions(name: Name, str_name: str) -> set:
@@ -103,9 +140,7 @@ class PetrovichGenderDetector:
             results_middlename.update(
                 self._check_against_exceptions(self._root_rules_bean.middlename, middlename)
             )
-            results_middlename.update(
-                self._check_again_suffixes(self._root_rules_bean.middlename, middlename)
-            )
+            results_middlename.update(self._suffix_indices["middlename"].detect_genders(middlename))
             logger.debug("middlename %r matched %s", middlename, results_middlename)
 
             if len(results_middlename) > 0 and next(iter(results_middlename)) != Gender.ANDROGYNOUS:
@@ -115,12 +150,12 @@ class PetrovichGenderDetector:
             results_firstname.update(
                 self._check_against_exceptions(self._root_rules_bean.firstname, firstname)
             )
-            results_firstname.update(self._check_again_suffixes(self._root_rules_bean.firstname, firstname))
+            results_firstname.update(self._suffix_indices["firstname"].detect_genders(firstname))
             logger.debug("firstname %r matched %s", firstname, results_firstname)
 
         if lastname:
             results_lastname.update(self._check_against_exceptions(self._root_rules_bean.lastname, lastname))
-            results_lastname.update(self._check_again_suffixes(self._root_rules_bean.lastname, lastname))
+            results_lastname.update(self._suffix_indices["lastname"].detect_genders(lastname))
             logger.debug("lastname %r matched %s", lastname, results_lastname)
 
         if firstname and lastname:
