@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/env bash
 #
 # Unit-test suite with coverage measurement and a minimum-threshold gate.
 #

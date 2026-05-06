@@ -1,5 +1,5 @@
 package = "pytrovich"
-version = "0.0.9"
+version = "0.0.10"
 authors = ["Anton Alekseev"]
 authors_string = ", ".join(authors)
 emails = ["anton.m.alexeyev+petrovich@gmail.com"]
