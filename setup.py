@@ -9,7 +9,7 @@ setup(
     packages=setuptools.find_packages(exclude=("tests", "tests.*")),
     version="0.0.10",
     description="pytrovich: a Python port of an inflector for Russian anthroponyms developed by petrovich team: "
-                "https://github.com/petrovich",
+    "https://github.com/petrovich",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Anton Alekseev",

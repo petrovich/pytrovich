@@ -70,9 +70,9 @@ def _load_and_index_rules(path_to_rules_file: str):
     exception_indices = {}
     suffix_indices = {}
     for part_attr, part_enum in (
-            ("firstname", NamePart.FIRSTNAME),
-            ("lastname", NamePart.LASTNAME),
-            ("middlename", NamePart.MIDDLENAME),
+        ("firstname", NamePart.FIRSTNAME),
+        ("lastname", NamePart.LASTNAME),
+        ("middlename", NamePart.MIDDLENAME),
     ):
         name_bean = getattr(root, part_attr)
         exception_indices[part_enum] = _RuleSuffixIndex(name_bean.exceptions if name_bean else None)

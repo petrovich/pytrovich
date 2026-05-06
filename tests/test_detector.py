@@ -13,9 +13,9 @@ class TestPetrovichGenderDetector:
     @pytest.mark.parametrize(
         "middlename,expected_gender",
         (
-                ("Иванович", Gender.MALE),
-                ("Ильинична", Gender.FEMALE),
-                ("Блаблабла", Gender.ANDROGYNOUS),
+            ("Иванович", Gender.MALE),
+            ("Ильинична", Gender.FEMALE),
+            ("Блаблабла", Gender.ANDROGYNOUS),
         ),
     )
     def test_detect_by_middlename(self, gender_detector, middlename, expected_gender):
@@ -33,10 +33,10 @@ class TestPetrovichGenderDetectorCoverage:
     @pytest.mark.parametrize(
         "firstname,expected",
         (
-                ("Иван", Gender.MALE),
-                ("Алексей", Gender.MALE),
-                ("Мария", Gender.FEMALE),
-                ("Елена", Gender.FEMALE),
+            ("Иван", Gender.MALE),
+            ("Алексей", Gender.MALE),
+            ("Мария", Gender.FEMALE),
+            ("Елена", Gender.FEMALE),
         ),
     )
     def test_detect_by_firstname(self, gender_detector, firstname, expected):
@@ -45,10 +45,10 @@ class TestPetrovichGenderDetectorCoverage:
     @pytest.mark.parametrize(
         "lastname,expected",
         (
-                ("Голубцов", Gender.MALE),
-                ("Лермонтов", Gender.MALE),
-                ("Цветаева", Gender.FEMALE),
-                ("Ахматова", Gender.FEMALE),
+            ("Голубцов", Gender.MALE),
+            ("Лермонтов", Gender.MALE),
+            ("Цветаева", Gender.FEMALE),
+            ("Ахматова", Gender.FEMALE),
         ),
     )
     def test_detect_by_lastname(self, gender_detector, lastname, expected):
@@ -57,38 +57,38 @@ class TestPetrovichGenderDetectorCoverage:
     @pytest.mark.parametrize(
         "firstname,middlename,expected",
         (
-                ("Иван", "Семёнович", Gender.MALE),
-                ("Анна", "Петровна", Gender.FEMALE),
-                # Azerbaijani patronymics: 'кызы' = daughter (female),
-                # 'оглы' = son (male). These exercise the suffix-detection path on
-                # middlenames where the firstname alone is foreign/androgynous.
-                ("Арзу", "Лутфияр кызы", Gender.FEMALE),
-                ("Рамиз", "Рустам оглы", Gender.MALE),
+            ("Иван", "Семёнович", Gender.MALE),
+            ("Анна", "Петровна", Gender.FEMALE),
+            # Azerbaijani patronymics: 'кызы' = daughter (female),
+            # 'оглы' = son (male). These exercise the suffix-detection path on
+            # middlenames where the firstname alone is foreign/androgynous.
+            ("Арзу", "Лутфияр кызы", Gender.FEMALE),
+            ("Рамиз", "Рустам оглы", Gender.MALE),
         ),
     )
     def test_detect_by_firstname_and_middlename(
-            self,
-            gender_detector,
-            firstname,
-            middlename,
-            expected,
+        self,
+        gender_detector,
+        firstname,
+        middlename,
+        expected,
     ):
         assert (
-                gender_detector.detect(
-                    firstname=firstname,
-                    middlename=middlename,
-                )
-                == expected
+            gender_detector.detect(
+                firstname=firstname,
+                middlename=middlename,
+            )
+            == expected
         )
 
     def test_detect_combined_firstname_and_lastname(self, gender_detector):
         # Both parts agree on MALE.
         assert (
-                gender_detector.detect(
-                    firstname="Иван",
-                    lastname="Голубцов",
-                )
-                == Gender.MALE
+            gender_detector.detect(
+                firstname="Иван",
+                lastname="Голубцов",
+            )
+            == Gender.MALE
         )
 
 

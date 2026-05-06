@@ -17,7 +17,6 @@ import json
 
 from pytrovich import gender_models, rule_models
 
-
 # ----- pytrovich.rule_models -----------------------------------------------
 
 
