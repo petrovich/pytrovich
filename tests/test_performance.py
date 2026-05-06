@@ -1,17 +1,18 @@
 """
 Performance benchmarks for pytrovich.
 
-These tests use pytest-benchmark and are targeted at the inefficiencies
-flagged in code review:
+These tests use pytest-benchmark and were originally targeted at the
+inefficiencies flagged in code review. Most have since been resolved
+in master:
 
-  * Linear suffix scan in PetrovichDeclinationMaker.find_in_rule_bean_list
-    (maker.py:87-98) — every rule and every test-suffix is checked per call.
-  * JSON parsing on every constructor invocation — rules.json is read and
-    parsed on each PetrovichDeclinationMaker() instantiation, with no
-    module-level cache.
-  * Character-by-character loop in apply_mod2name (maker.py:58-77).
-  * Linear suffix scan in PetrovichGenderDetector._check_again_suffixes
-    (detector.py:37-59).
+  * Linear suffix scan in the maker / detector — replaced by the
+    SuffixTrie introduced on the faster-lookup branch (3-5x speedup;
+    see pytrovich/suffix_trie.py).
+  * Character-by-character loop in apply_mod2name — simplified to
+    `name[:-n] + suffix` form.
+  * JSON parsing on every constructor invocation — now cached at
+    module level by rules-file path, so repeated construction is
+    effectively free.
 
 Benchmarks are tagged with `@pytest.mark.benchmark` so they can be
 selected/deselected at the command line:
@@ -34,7 +35,6 @@ from pytrovich.maker import PetrovichDeclinationMaker
 pytest.importorskip("pytest_benchmark")
 
 pytestmark = pytest.mark.benchmark
-
 
 # A representative workload: a mix of name parts, genders, cases, and
 # endings that exercise different rule branches (suffix-matched, exception

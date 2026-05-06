@@ -15,36 +15,35 @@ class TestPetrovichDeclinationMaker:
     @pytest.mark.parametrize(
         "name_part,gender,case_to_use,original_name,expected_result",
         (
-            # firstnames
-            (NamePart.FIRSTNAME, Gender.FEMALE, Case.GENITIVE, "Мария", "Марии"),
-            (NamePart.FIRSTNAME, Gender.MALE, Case.DATIVE, "Василий", "Василию"),
-            (NamePart.FIRSTNAME, Gender.FEMALE, Case.ACCUSATIVE, "Ксюша", "Ксюшу"),
-            (NamePart.FIRSTNAME, Gender.MALE, Case.INSTRUMENTAL, "Паша", "Пашей"),
-            (NamePart.FIRSTNAME, Gender.FEMALE, Case.PREPOSITIONAL, "Елена", "Елене"),
-            # middlenames
-            (NamePart.MIDDLENAME, Gender.FEMALE, Case.GENITIVE, "Геннадиевна", "Геннадиевны"),
-            (NamePart.MIDDLENAME, Gender.MALE, Case.DATIVE, "Васильевич", "Васильевичу"),
-            (NamePart.MIDDLENAME, Gender.FEMALE, Case.ACCUSATIVE, "Васильевна", "Васильевну"),
-            (NamePart.MIDDLENAME, Gender.MALE, Case.INSTRUMENTAL, "Павлович", "Павловичем"),
-            (NamePart.MIDDLENAME, Gender.FEMALE, Case.PREPOSITIONAL, "Павловна", "Павловне"),
-            # lastnames
-            (NamePart.LASTNAME, Gender.FEMALE, Case.GENITIVE, "Цветаева", "Цветаевой"),
-            (NamePart.LASTNAME, Gender.MALE, Case.DATIVE, "Толстой", "Толстому"),
-            (NamePart.LASTNAME, Gender.FEMALE, Case.ACCUSATIVE, "Ахматова", "Ахматову"),
-            (NamePart.LASTNAME, Gender.MALE, Case.INSTRUMENTAL, "Лермонтов", "Лермонтовым"),
-            (NamePart.LASTNAME, Gender.FEMALE, Case.PREPOSITIONAL, "Баркова", "Барковой"),
+                # firstnames
+                (NamePart.FIRSTNAME, Gender.FEMALE, Case.GENITIVE, "Мария", "Марии"),
+                (NamePart.FIRSTNAME, Gender.MALE, Case.DATIVE, "Василий", "Василию"),
+                (NamePart.FIRSTNAME, Gender.FEMALE, Case.ACCUSATIVE, "Ксюша", "Ксюшу"),
+                (NamePart.FIRSTNAME, Gender.MALE, Case.INSTRUMENTAL, "Паша", "Пашей"),
+                (NamePart.FIRSTNAME, Gender.FEMALE, Case.PREPOSITIONAL, "Елена", "Елене"),
+                # middlenames
+                (NamePart.MIDDLENAME, Gender.FEMALE, Case.GENITIVE, "Геннадиевна", "Геннадиевны"),
+                (NamePart.MIDDLENAME, Gender.MALE, Case.DATIVE, "Васильевич", "Васильевичу"),
+                (NamePart.MIDDLENAME, Gender.FEMALE, Case.ACCUSATIVE, "Васильевна", "Васильевну"),
+                (NamePart.MIDDLENAME, Gender.MALE, Case.INSTRUMENTAL, "Павлович", "Павловичем"),
+                (NamePart.MIDDLENAME, Gender.FEMALE, Case.PREPOSITIONAL, "Павловна", "Павловне"),
+                # lastnames
+                (NamePart.LASTNAME, Gender.FEMALE, Case.GENITIVE, "Цветаева", "Цветаевой"),
+                (NamePart.LASTNAME, Gender.MALE, Case.DATIVE, "Толстой", "Толстому"),
+                (NamePart.LASTNAME, Gender.FEMALE, Case.ACCUSATIVE, "Ахматова", "Ахматову"),
+                (NamePart.LASTNAME, Gender.MALE, Case.INSTRUMENTAL, "Лермонтов", "Лермонтовым"),
+                (NamePart.LASTNAME, Gender.FEMALE, Case.PREPOSITIONAL, "Баркова", "Барковой"),
         ),
     )
     def test_common_names(
-        self,
-        maker: PetrovichDeclinationMaker,
-        name_part: NamePart,
-        gender: Gender,
-        case_to_use: Case,
-        original_name: str,
-        expected_result: str,
+            self,
+            maker: PetrovichDeclinationMaker,
+            name_part: NamePart,
+            gender: Gender,
+            case_to_use: Case,
+            original_name: str,
+            expected_result: str,
     ) -> None:
-
         assert maker.make(name_part, gender, case_to_use, original_name) == expected_result
 
 
@@ -60,11 +59,11 @@ class TestPetrovichDeclinationMakerCoverage:
     @pytest.mark.parametrize(
         "case,expected",
         (
-            (Case.GENITIVE, "Ивана"),
-            (Case.DATIVE, "Ивану"),
-            (Case.ACCUSATIVE, "Ивана"),
-            (Case.INSTRUMENTAL, "Иваном"),
-            (Case.PREPOSITIONAL, "Иване"),
+                (Case.GENITIVE, "Ивана"),
+                (Case.DATIVE, "Ивану"),
+                (Case.ACCUSATIVE, "Ивана"),
+                (Case.INSTRUMENTAL, "Иваном"),
+                (Case.PREPOSITIONAL, "Иване"),
         ),
     )
     def test_all_cases_for_one_name(self, maker, case, expected):
@@ -142,29 +141,15 @@ class TestPetrovichDeclinationMakerKnownIssues:
     Do NOT delete these tests on fix — convert them to plain assertions.
     """
 
-    @pytest.mark.xfail(
-        reason=(
-            "maker.py:36-37: an unrecognized NamePart (e.g. a string) is "
-            "silently treated as MIDDLENAME, so make('FIRSTNAME', ...) "
-            "returns the input unchanged with no error. Should raise "
-            "TypeError or ValueError."
-        ),
-        strict=True,
-    )
-    def test_string_name_part_should_raise(self, maker):
-        with pytest.raises((TypeError, ValueError)):
-            # Note: passing a *string* literal instead of NamePart.FIRSTNAME.
+    def test_string_name_part_raises_type_error(self, maker):
+        # Pre-fix, passing a string literal instead of the NamePart
+        # enum silently fell through the dispatch and returned the
+        # input unchanged. Now raises TypeError with a hint.
+        with pytest.raises(TypeError, match="name_part must be a NamePart"):
             maker.make("FIRSTNAME", Gender.MALE, Case.GENITIVE, "Иван")
 
-    @pytest.mark.xfail(
-        reason=(
-            "Same fall-through as above: None NamePart is treated as "
-            "MIDDLENAME and the input is returned unchanged."
-        ),
-        strict=True,
-    )
-    def test_none_name_part_should_raise(self, maker):
-        with pytest.raises((TypeError, ValueError)):
+    def test_none_name_part_raises_type_error(self, maker):
+        with pytest.raises(TypeError, match="name_part must be a NamePart"):
             maker.make(None, Gender.MALE, Case.GENITIVE, "Иван")
 
 

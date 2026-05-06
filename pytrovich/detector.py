@@ -1,5 +1,6 @@
 import json
 import logging
+from functools import lru_cache
 from os import path
 
 from pytrovich.enums import Gender
@@ -51,13 +52,32 @@ class _GenderSuffixIndex:
         return set(self._trie.find_all_matches(str_name))
 
 
+@lru_cache(maxsize=8)
+def _load_and_index_gender_rules(path_to_rules_file: str):
+    """
+    Module-level cache for the parsed gender-rules tree + the per-
+    name-part suffix indices. Same shape as the maker's loader: parse
+    once per unique path, share across instances. Read-only after
+    construction so sharing is safe.
+
+    Returns (root, suffix_indices).
+    """
+    with open(path_to_rules_file, encoding="utf-8") as fp:
+        root = Root.parse(json.load(fp)["gender"])
+    suffix_indices = {
+        "firstname": _GenderSuffixIndex(root.firstname),
+        "lastname": _GenderSuffixIndex(root.lastname),
+        "middlename": _GenderSuffixIndex(root.middlename),
+    }
+    return root, suffix_indices
+
+
 class PetrovichGenderDetector:
     DEFAULT_PATH_TO_RULES_FILE = path.join(path.dirname(__file__), "petrovich-rules", "gender.json")
 
     def __init__(self, path_to_rules_file: str = DEFAULT_PATH_TO_RULES_FILE):
         try:
-            with open(path_to_rules_file, encoding="utf-8") as fp:
-                self._root_rules_bean = Root.parse(json.load(fp=fp)["gender"])
+            self._root_rules_bean, self._suffix_indices = _load_and_index_gender_rules(path_to_rules_file)
             logger.debug("loaded gender rules from %s", path_to_rules_file)
         except FileNotFoundError as e:
             raise RuntimeError(
@@ -74,16 +94,6 @@ class PetrovichGenderDetector:
                 f"petrovich-rules upstream."
             ) from e
 
-        # Pre-build a suffix trie for each name part. Per-call
-        # detection then collapses three separate per-gender linear
-        # scans into one O(L) trie traversal that returns the set of
-        # matched genders directly.
-        self._suffix_indices = {
-            "firstname": _GenderSuffixIndex(self._root_rules_bean.firstname),
-            "lastname": _GenderSuffixIndex(self._root_rules_bean.lastname),
-            "middlename": _GenderSuffixIndex(self._root_rules_bean.middlename),
-        }
-
     @staticmethod
     def _check_against_exceptions(name: Name, str_name: str) -> set:
         results = []
@@ -96,36 +106,28 @@ class PetrovichGenderDetector:
             results.append(Gender.ANDROGYNOUS)
         return set(results)
 
-    @staticmethod
-    def _check_again_suffixes(name: Name, str_name: str) -> set:
-
-        results = []
-
-        if name.suffixes and name.suffixes.male:
-            for possible_suffix in name.suffixes.male:
-                if str_name.endswith(possible_suffix):
-                    results.append(Gender.MALE)
-                    break
-
-        if name.suffixes and name.suffixes.female:
-            for possible_suffix in name.suffixes.female:
-                if str_name.endswith(possible_suffix):
-                    results.append(Gender.FEMALE)
-                    break
-
-        if name.suffixes and name.suffixes.andro:
-            for possible_suffix in name.suffixes.andro:
-                if str_name.endswith(possible_suffix):
-                    results.append(Gender.ANDROGYNOUS)
-                    break
-
-        return set(results)
-
     def detect(self, firstname=None, lastname=None, middlename=None):
+        """
+        Predict the grammatical gender of the supplied name parts.
 
-        assert not (firstname is None and lastname is None and middlename is None), (
-            "At least one part of the name should be given."
-        )
+        At least one of the three keyword arguments must be non-empty.
+        When more than one is given the parts cross-check each other:
+        a confident middlename answer wins outright (patronymics are
+        gender-specific by construction); otherwise a definite
+        firstname/lastname gender beats an ANDROGYNOUS one. Truly
+        ambiguous combinations log a WARNING and return a
+        deterministic best guess.
+
+        :param firstname: first name (Иван, Анна, …). Optional.
+        :param lastname: last name / surname (Иванов, Иванова, …). Optional.
+        :param middlename: patronymic / middle name (Иванович,
+            Ивановна, …). Optional.
+        :return: Gender.MALE, Gender.FEMALE, or Gender.ANDROGYNOUS.
+            ANDROGYNOUS is also the fallback when no rule matches —
+            see Issue #6 / petrovich-ruby for the rationale.
+        """
+        if firstname is None and lastname is None and middlename is None:
+            raise ValueError("at least one of firstname, lastname, middlename must be given")
 
         logger.debug(
             "detect(firstname=%r, lastname=%r, middlename=%r)",

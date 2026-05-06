@@ -1,6 +1,8 @@
 import json
 import logging
+from functools import lru_cache
 from os import path
+from typing import Optional
 
 from pytrovich.enums import Case, Gender, NamePart
 from pytrovich.rule_models import Root, Rule
@@ -33,7 +35,7 @@ class _RuleSuffixIndex:
             for test in rule.test:
                 self._trie.insert(test, index)
 
-    def find_first_match(self, name: str, gender_label: str):
+    def find_first_match(self, name: str, gender_label: str) -> Optional[Rule]:
         """
         Return the Rule with the lowest registration-order index that
         (a) has a test value matching as a suffix of *name* and
@@ -51,6 +53,33 @@ class _RuleSuffixIndex:
         return rules[best_index] if best_index is not None else None
 
 
+@lru_cache(maxsize=8)
+def _load_and_index_rules(path_to_rules_file: str):
+    """
+    Module-level cache for the parsed rules tree + the per-name-part
+    suffix indices. Keyed by file path. Both the JSON parse and the
+    six SuffixTrie builds happen exactly once per unique path,
+    regardless of how many PetrovichDeclinationMaker instances are
+    constructed against it. The cached objects are read-only after
+    construction so sharing across instances is safe.
+
+    Returns (root, exception_indices, suffix_indices).
+    """
+    with open(path_to_rules_file, encoding="utf-8") as fp:
+        root = Root.parse(json.load(fp))
+    exception_indices = {}
+    suffix_indices = {}
+    for part_attr, part_enum in (
+            ("firstname", NamePart.FIRSTNAME),
+            ("lastname", NamePart.LASTNAME),
+            ("middlename", NamePart.MIDDLENAME),
+    ):
+        name_bean = getattr(root, part_attr)
+        exception_indices[part_enum] = _RuleSuffixIndex(name_bean.exceptions if name_bean else None)
+        suffix_indices[part_enum] = _RuleSuffixIndex(name_bean.suffixes if name_bean else None)
+    return root, exception_indices, suffix_indices
+
+
 class PetrovichDeclinationMaker:
     DEFAULT_PATH_TO_RULES_FILE = path.join(path.dirname(__file__), "petrovich-rules", "rules.json")
     MODS_KEEP_IT_ALL_SYMBOL = "."
@@ -58,8 +87,11 @@ class PetrovichDeclinationMaker:
 
     def __init__(self, path_to_rules_file: str = DEFAULT_PATH_TO_RULES_FILE):
         try:
-            with open(path_to_rules_file, encoding="utf-8") as fp:
-                self._root_rules_bean = Root.parse(json.load(fp=fp))
+            (
+                self._root_rules_bean,
+                self._exception_indices,
+                self._suffix_indices,
+            ) = _load_and_index_rules(path_to_rules_file)
             logger.debug("loaded declination rules from %s", path_to_rules_file)
         except FileNotFoundError as e:
             raise RuntimeError(
@@ -76,22 +108,25 @@ class PetrovichDeclinationMaker:
                 f"from petrovich-rules upstream."
             ) from e
 
-        # Pre-build suffix tries for each (name_part, kind). Done once at
-        # construction; per-call lookup is then O(L) in the matched
-        # suffix length rather than O(n) in the rule count.
-        self._exception_indices = {}
-        self._suffix_indices = {}
-        for part_attr, part_enum in (
-            ("firstname", NamePart.FIRSTNAME),
-            ("lastname", NamePart.LASTNAME),
-            ("middlename", NamePart.MIDDLENAME),
-        ):
-            name_bean = getattr(self._root_rules_bean, part_attr)
-            self._exception_indices[part_enum] = _RuleSuffixIndex(name_bean.exceptions if name_bean else None)
-            self._suffix_indices[part_enum] = _RuleSuffixIndex(name_bean.suffixes if name_bean else None)
-
     def make(self, name_part: NamePart, gender: Gender, case_to_use: Case, original_name: str) -> str:
+        """
+        Inflect *original_name* into the requested grammatical case.
 
+        :param name_part: which part of the anthroponym we are dealing
+            with — first name, last name (surname), or middle name
+            (patronymic). Different parts have different rule sets.
+        :param gender: grammatical gender (MALE / FEMALE / ANDROGYNOUS)
+            — needed because Russian inflection diverges by gender for
+            most patterns.
+        :param case_to_use: target case. Note that NOMINATIVE is not a
+            member: input is assumed already nominative, and `make`
+            transforms it into one of the five oblique cases.
+        :param original_name: the name in nominative form. Lookup is
+            case-insensitive (lowercased internally for matching), but
+            the original casing is preserved in the output.
+        :return: the inflected form, or the original input unchanged
+            if no rule and no exception matched.
+        """
         result = original_name
 
         # Lowercase for rule lookup. The rules data uses lowercase
@@ -105,15 +140,24 @@ class PetrovichDeclinationMaker:
         # PetrovichGenderDetector.detect.
         lookup_name = original_name.lower()
 
-        # Index lookup is keyed by NamePart; the unknown-NamePart
-        # else-branch above handed back middlename's name_bean, so
-        # mirror that here for the index.
-        index_part = name_part if name_part in self._exception_indices else NamePart.MIDDLENAME
+        # name_part validation. Pre-fix this fell through to
+        # MIDDLENAME silently; calls like make("FIRSTNAME", ...) or
+        # make(None, ...) returned the input unchanged with no
+        # warning. xfail tests in tests/test_known_issues.py pinned
+        # this; with the explicit TypeError those flip to xpass and
+        # the regular tests in TestPetrovichDeclinationMakerKnownIssues
+        # become straight assertions.
+        if name_part not in self._exception_indices:
+            raise TypeError(
+                f"name_part must be a NamePart enum value "
+                f"(NamePart.FIRSTNAME, .LASTNAME, or .MIDDLENAME); "
+                f"got {type(name_part).__name__}={name_part!r}"
+            )
         gender_label = gender.str()
-        exception_rule_bean: Rule = self._exception_indices[index_part].find_first_match(
+        exception_rule_bean: Rule = self._exception_indices[name_part].find_first_match(
             lookup_name, gender_label
         )
-        suffix_rule_bean: Rule = self._suffix_indices[index_part].find_first_match(lookup_name, gender_label)
+        suffix_rule_bean: Rule = self._suffix_indices[name_part].find_first_match(lookup_name, gender_label)
 
         if exception_rule_bean and exception_rule_bean.gender == gender.str():
             rule_to_use: Rule = exception_rule_bean
@@ -150,44 +194,20 @@ class PetrovichDeclinationMaker:
 
     @staticmethod
     def apply_mod2name(mod2apply: str, name: str) -> str:
-
-        result = name
-
-        # if modification is not needed
-        if mod2apply != PetrovichDeclinationMaker.MODS_KEEP_IT_ALL_SYMBOL:
-            # if modification is needed according to rules
-            if PetrovichDeclinationMaker.MODS_REMOVE_LETTER_SYMBOL in mod2apply:
-                for i in range(len(mod2apply)):
-                    # if special character "-", removing the last letter
-                    if mod2apply[i] == PetrovichDeclinationMaker.MODS_REMOVE_LETTER_SYMBOL:
-                        result = result[0 : len(result) - 1]
-                    # if not a special character "-", adding the rest of the modifier to the result
-                    else:
-                        result += mod2apply[i:]
-                        break
-            else:
-                result = name + mod2apply
-
-        return result
-
-    @staticmethod
-    def find_in_rule_bean_list(rule_bean_list: list, gender: Gender, original_name: str) -> Rule:
-
-        result = None
-        done = False
-
-        if rule_bean_list is not None:
-            # traversing all rules available
-            for rule_bean in rule_bean_list:
-                if done:
-                    break
-                # traversing all available checks for word ends
-                for test in rule_bean.test:
-                    # if match found
-                    if original_name.endswith(test):
-                        # if angrogynous OR gender match -- we're done, escaping both loops
-                        if rule_bean.gender == Gender.ANDROGYNOUS.str() or rule_bean.gender == gender.str():
-                            result = rule_bean
-                            done = True
-                            break
-        return result
+        # Mod-string format from petrovich-rules: a "." means keep
+        # the name as-is; otherwise leading "-" characters are
+        # remove-last-letter markers, and anything after them is the
+        # suffix to append. Examples seen in rules.json:
+        #   "."        → keep
+        #   "а"        → name + "а"
+        #   "-я"       → name[:-1] + "я"
+        #   "--ой"     → name[:-2] + "ой"
+        #   "---етра"  → name[:-3] + "етра"
+        # Verified against the full rules data: every '-' in every
+        # mod is leading. The previous character-by-character loop
+        # was equivalent but harder to read.
+        if mod2apply == PetrovichDeclinationMaker.MODS_KEEP_IT_ALL_SYMBOL:
+            return name
+        n_remove = mod2apply.count(PetrovichDeclinationMaker.MODS_REMOVE_LETTER_SYMBOL)
+        suffix = mod2apply[n_remove:]
+        return (name[:-n_remove] if n_remove else name) + suffix

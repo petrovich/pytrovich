@@ -7,10 +7,16 @@ class Rule:
     """
 
     def __init__(self, male: list = None, female: list = None, androgynous: list = None):
-        assert male is not None or female is not None or androgynous is not None
-        self.male = set(male) if male is not None else []
-        self.female = set(female) if female is not None else []
-        self.andro = set(androgynous) if androgynous is not None else []
+        if male is None and female is None and androgynous is None:
+            raise ValueError("at least one of male, female, androgynous must be given")
+        # Always store as a set, never a list. Previously the empty
+        # case fell back to `[]`, leaving the attribute's runtime type
+        # ambiguous (set or list); membership-check call sites worked
+        # by accident either way but isinstance checks did not. Empty
+        # set is harmless: iteration is no-op, `in` is O(1).
+        self.male = set(male) if male is not None else set()
+        self.female = set(female) if female is not None else set()
+        self.andro = set(androgynous) if androgynous is not None else set()
 
     def serialize(self):
         builder = {}
@@ -35,7 +41,8 @@ class Name:
         :param exceptions: list(Rule):
         :param suffixes: list(Rule)
         """
-        assert exceptions is not None or suffixes is not None
+        if exceptions is None and suffixes is None:
+            raise ValueError("at least one of exceptions, suffixes must be given")
         self.exceptions = exceptions
         self.suffixes = suffixes
 
@@ -58,7 +65,8 @@ class Name:
 
 class Root:
     def __init__(self, firstname: Name = None, lastname: Name = None, middlename: Name = None):
-        assert firstname is not None or lastname is not None or middlename is not None
+        if firstname is None and lastname is None and middlename is None:
+            raise ValueError("at least one of firstname, lastname, middlename must be given")
         self.firstname = firstname
         self.lastname = lastname
         self.middlename = middlename

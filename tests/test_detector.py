@@ -13,9 +13,9 @@ class TestPetrovichGenderDetector:
     @pytest.mark.parametrize(
         "middlename,expected_gender",
         (
-            ("Иванович", Gender.MALE),
-            ("Ильинична", Gender.FEMALE),
-            ("Блаблабла", Gender.ANDROGYNOUS),
+                ("Иванович", Gender.MALE),
+                ("Ильинична", Gender.FEMALE),
+                ("Блаблабла", Gender.ANDROGYNOUS),
         ),
     )
     def test_detect_by_middlename(self, gender_detector, middlename, expected_gender):
@@ -33,10 +33,10 @@ class TestPetrovichGenderDetectorCoverage:
     @pytest.mark.parametrize(
         "firstname,expected",
         (
-            ("Иван", Gender.MALE),
-            ("Алексей", Gender.MALE),
-            ("Мария", Gender.FEMALE),
-            ("Елена", Gender.FEMALE),
+                ("Иван", Gender.MALE),
+                ("Алексей", Gender.MALE),
+                ("Мария", Gender.FEMALE),
+                ("Елена", Gender.FEMALE),
         ),
     )
     def test_detect_by_firstname(self, gender_detector, firstname, expected):
@@ -45,10 +45,10 @@ class TestPetrovichGenderDetectorCoverage:
     @pytest.mark.parametrize(
         "lastname,expected",
         (
-            ("Голубцов", Gender.MALE),
-            ("Лермонтов", Gender.MALE),
-            ("Цветаева", Gender.FEMALE),
-            ("Ахматова", Gender.FEMALE),
+                ("Голубцов", Gender.MALE),
+                ("Лермонтов", Gender.MALE),
+                ("Цветаева", Gender.FEMALE),
+                ("Ахматова", Gender.FEMALE),
         ),
     )
     def test_detect_by_lastname(self, gender_detector, lastname, expected):
@@ -57,38 +57,38 @@ class TestPetrovichGenderDetectorCoverage:
     @pytest.mark.parametrize(
         "firstname,middlename,expected",
         (
-            ("Иван", "Семёнович", Gender.MALE),
-            ("Анна", "Петровна", Gender.FEMALE),
-            # Azerbaijani patronymics: 'кызы' = daughter (female),
-            # 'оглы' = son (male). These exercise the suffix-detection path on
-            # middlenames where the firstname alone is foreign/androgynous.
-            ("Арзу", "Лутфияр кызы", Gender.FEMALE),
-            ("Рамиз", "Рустам оглы", Gender.MALE),
+                ("Иван", "Семёнович", Gender.MALE),
+                ("Анна", "Петровна", Gender.FEMALE),
+                # Azerbaijani patronymics: 'кызы' = daughter (female),
+                # 'оглы' = son (male). These exercise the suffix-detection path on
+                # middlenames where the firstname alone is foreign/androgynous.
+                ("Арзу", "Лутфияр кызы", Gender.FEMALE),
+                ("Рамиз", "Рустам оглы", Gender.MALE),
         ),
     )
     def test_detect_by_firstname_and_middlename(
-        self,
-        gender_detector,
-        firstname,
-        middlename,
-        expected,
+            self,
+            gender_detector,
+            firstname,
+            middlename,
+            expected,
     ):
         assert (
-            gender_detector.detect(
-                firstname=firstname,
-                middlename=middlename,
-            )
-            == expected
+                gender_detector.detect(
+                    firstname=firstname,
+                    middlename=middlename,
+                )
+                == expected
         )
 
     def test_detect_combined_firstname_and_lastname(self, gender_detector):
         # Both parts agree on MALE.
         assert (
-            gender_detector.detect(
-                firstname="Иван",
-                lastname="Голубцов",
-            )
-            == Gender.MALE
+                gender_detector.detect(
+                    firstname="Иван",
+                    lastname="Голубцов",
+                )
+                == Gender.MALE
         )
 
 
@@ -116,17 +116,11 @@ class TestPetrovichGenderDetectorKnownIssues:
         # contract (Petrovich.detect_gender('блаблабла') => :androgynous).
         assert gender_detector.detect(firstname=firstname) == Gender.ANDROGYNOUS
 
-    @pytest.mark.xfail(
-        reason=(
-            "detector.py:63 uses 'assert' for argument validation. Under "
-            "`python -O` the assertion is stripped and downstream code "
-            "crashes with AttributeError on a None Name. Validation should "
-            "raise ValueError unconditionally."
-        ),
-        strict=True,
-    )
     def test_no_arguments_raises_value_error(self, gender_detector):
-        with pytest.raises(ValueError):
+        # Pre-fix this used `assert` for validation, which `python -O`
+        # would strip and let downstream AttributeError on a None Name
+        # surface to callers. Now raises ValueError unconditionally.
+        with pytest.raises(ValueError, match="at least one of"):
             gender_detector.detect()
 
 
@@ -179,3 +173,46 @@ class TestPetrovichGenderDetectorCaseNormalization:
         # so capitalized 'Лёва' should match after normalization.
         assert gender_detector.detect(firstname="Лёва") == Gender.MALE
         assert gender_detector.detect(firstname="ЛЁВА") == Gender.MALE
+
+
+class TestPetrovichGenderDetectorConflictResolution:
+    """
+    Pin the firstname-and-lastname conflict-resolution path in
+    detect(): when one part has a definite gender and the other is
+    ANDROGYNOUS-only, the definite one wins.
+
+    The two andro-only firstname exceptions in the rules data are
+    'саша' and 'женя' — every other entry in firstname.exceptions.andro
+    also matches one of the suffix rules and so resolves to a
+    multi-element set rather than pure {ANDROGYNOUS}. The
+    lastname.exceptions.andro list happens not to contain any
+    pure-andro names at all (every entry overlaps a suffix rule), so
+    only the lastname-decides-firstname direction is tested below.
+    """
+
+    def test_androgynous_firstname_with_definite_lastname_returns_lastname_gender(self, gender_detector):
+        # 'Саша' resolves to ANDROGYNOUS only (firstname.exceptions);
+        # 'Иванова' resolves to FEMALE (suffix rule). The conflict
+        # resolver should return FEMALE rather than fall through.
+        # Hits the `return ln` branch.
+        assert gender_detector.detect(firstname="Саша", lastname="Иванова") == Gender.FEMALE
+        # Same shape with the other direction of definite gender.
+        assert gender_detector.detect(firstname="Женя", lastname="Иванов") == Gender.MALE
+
+
+class TestPetrovichGenderDetectorErrorPaths:
+    """
+    Mirror of the maker's missing/malformed-rules-file tests for the
+    detector. The contract is: a missing or unparseable gender.json
+    raises RuntimeError with a hint telling the user how to fix it.
+    """
+
+    def test_missing_rules_file_raises_runtime_error(self, tmp_path):
+        with pytest.raises(RuntimeError, match="rules file not found"):
+            PetrovichGenderDetector(str(tmp_path / "does-not-exist.json"))
+
+    def test_malformed_rules_file_raises_runtime_error(self, tmp_path):
+        bad = tmp_path / "bad.json"
+        bad.write_text("not valid json {{{")
+        with pytest.raises(RuntimeError, match="malformed"):
+            PetrovichGenderDetector(str(bad))

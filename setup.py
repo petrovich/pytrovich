@@ -1,6 +1,5 @@
-from distutils.core import setup
-
 import setuptools
+from setuptools import setup
 
 with open("README.md", encoding="utf-8") as fh:
     long_description = fh.read()
@@ -8,9 +7,9 @@ with open("README.md", encoding="utf-8") as fh:
 setup(
     name="pytrovich",
     packages=setuptools.find_packages(exclude=("tests", "tests.*")),
-    version="0.0.9",
+    version="0.0.10",
     description="pytrovich: a Python port of an inflector for Russian anthroponyms developed by petrovich team: "
-    "https://github.com/petrovich",
+                "https://github.com/petrovich",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Anton Alekseev",
@@ -24,5 +23,6 @@ setup(
     ],
     zip_safe=False,
     include_package_data=True,
+    package_data={"pytrovich": ["py.typed"]},
     python_requires=">=3.9",
 )
