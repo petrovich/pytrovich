@@ -118,15 +118,24 @@ class PetrovichDeclinationMaker:
         :param gender: grammatical gender (MALE / FEMALE / ANDROGYNOUS)
             — needed because Russian inflection diverges by gender for
             most patterns.
-        :param case_to_use: target case. Note that NOMINATIVE is not a
-            member: input is assumed already nominative, and `make`
-            transforms it into one of the five oblique cases.
+        :param case_to_use: target case. NOMINATIVE is the identity
+            transformation (returns the input as-is) so callers can
+            iterate over all six members of `Case` uniformly when
+            generating a full declension table — same convention as
+            petrovich-ruby.
         :param original_name: the name in nominative form. Lookup is
             case-insensitive (lowercased internally for matching), but
             the original casing is preserved in the output.
         :return: the inflected form, or the original input unchanged
             if no rule and no exception matched.
         """
+        # Nominative is the identity transformation — input is already
+        # in nominative form by API contract. Short-circuit before any
+        # rule lookup so we never index mods[5] (mods arrays are
+        # 5-element, indexed by Case.GENITIVE .. .PREPOSITIONAL).
+        if case_to_use == Case.NOMINATIVE:
+            return original_name
+
         result = original_name
 
         # Lowercase for rule lookup. The rules data uses lowercase

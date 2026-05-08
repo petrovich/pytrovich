@@ -55,11 +55,13 @@ from pytrovich.maker import PetrovichDeclinationMaker
 # The '0' marker means aptotic (indeclinable in all cases).
 GRAMMEME_TO_GENDER = {"мр": Gender.MALE, "жр": Gender.FEMALE}
 GRAMMEME_TO_CASE = {
-    # Note: pytrovich's Case enum has no NOMINATIVE member by design —
-    # `make()` is a *transformation* from a nominative-form input to
-    # one of the five oblique cases. Nominative rows in the eval data
-    # (grammeme 'им') always have lemma == word and are handled below
-    # by skipping them.
+    # NOMINATIVE is the identity transformation in pytrovich (added
+    # to match petrovich-ruby's :nominative semantics). Including it
+    # here picks up the ~30k 'им'-tagged eval rows that were
+    # previously skipped — the checks are tautologically true for
+    # any well-behaved inflector but keep the eval-suite output in
+    # parity with the Ruby reference.
+    "им": Case.NOMINATIVE,
     "рд": Case.GENITIVE,
     "дт": Case.DATIVE,
     "вн": Case.ACCUSATIVE,

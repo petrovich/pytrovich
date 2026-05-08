@@ -12,6 +12,7 @@ class Case(LowerCaseNameEnum):
     ACCUSATIVE = 2
     INSTRUMENTAL = 3
     PREPOSITIONAL = 4
+    NOMINATIVE = 5
 
 
 class Gender(LowerCaseNameEnum):
