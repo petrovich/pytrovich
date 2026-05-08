@@ -59,6 +59,7 @@ class TestPetrovichDeclinationMakerCoverage:
     @pytest.mark.parametrize(
         "case,expected",
         (
+            (Case.NOMINATIVE, "Иван"),
             (Case.GENITIVE, "Ивана"),
             (Case.DATIVE, "Ивану"),
             (Case.ACCUSATIVE, "Ивана"),
@@ -68,6 +69,8 @@ class TestPetrovichDeclinationMakerCoverage:
     )
     def test_all_cases_for_one_name(self, maker, case, expected):
         # Exercises every Case enum value for a single male firstname.
+        # Nominative is the identity (input unchanged); the five
+        # oblique cases each have a distinct form.
         assert maker.make(NamePart.FIRSTNAME, Gender.MALE, case, "Иван") == expected
 
     def test_lowercase_input_is_processed_via_suffix_match(self, maker):
@@ -203,3 +206,48 @@ class TestPetrovichDeclinationMakerCaseNormalization:
         # the suffix rule was case-sensitive. Now it inflects, with
         # the original case preserved on the unmodified portion.
         assert maker.make(NamePart.LASTNAME, Gender.MALE, Case.GENITIVE, "ИВАНОВ-ПЕТРОВ") == "ИВАНОВ-ПЕТРОВа"
+
+
+class TestPetrovichDeclinationMakerNominative:
+    """
+    Pin the contract for Case.NOMINATIVE: the identity transformation.
+    Exists so callers can iterate over all six members of `Case`
+    uniformly when generating a full declension table — same idiom as
+    petrovich-ruby's `Petrovich::CASES.each`.
+    """
+
+    def test_nominative_returns_input_unchanged(self, maker):
+        # No rule lookup, no inflection — input flows straight through.
+        assert maker.make(NamePart.FIRSTNAME, Gender.MALE, Case.NOMINATIVE, "Иван") == "Иван"
+        assert maker.make(NamePart.LASTNAME, Gender.FEMALE, Case.NOMINATIVE, "Иванова") == "Иванова"
+        assert maker.make(NamePart.MIDDLENAME, Gender.MALE, Case.NOMINATIVE, "Иванович") == "Иванович"
+
+    def test_nominative_preserves_case_and_punctuation(self, maker):
+        # The early-return precedes the lowercase-for-lookup step, so
+        # the input bytes are returned verbatim — preserving casing,
+        # diacritics, hyphens, even leading/trailing whitespace. This
+        # matches the petrovich-ruby behavior for :nominative.
+        for sample in ["ИВАНОВ", "Лёва", "Иванов-Петров", " Иван ", ""]:
+            assert maker.make(NamePart.LASTNAME, Gender.MALE, Case.NOMINATIVE, sample) == sample
+
+    def test_nominative_does_not_apply_indeclinable_exceptions(self, maker):
+        # 'Дюма' is conventionally indeclinable; under the oblique
+        # cases its rule fires (and produces 'Дюма' unchanged via the
+        # all-`.` mod). Under nominative the rule never fires at all
+        # — we short-circuit before lookup. Output is identical here
+        # but the path is different, and that matters for any future
+        # observability hook (logging, metrics) on rule activations.
+        assert maker.make(NamePart.LASTNAME, Gender.MALE, Case.NOMINATIVE, "Дюма") == "Дюма"
+
+    def test_nominative_works_alongside_all_other_cases(self, maker):
+        # Concretely exercise the petrovich-ruby idiom:
+        #   forms = [maker.make(part, gender, c, name) for c in Case]
+        forms = [maker.make(NamePart.LASTNAME, Gender.MALE, c, "Иванов") for c in Case]
+        assert forms == [
+            "Иванова",  # GENITIVE
+            "Иванову",  # DATIVE
+            "Иванова",  # ACCUSATIVE
+            "Ивановым",  # INSTRUMENTAL
+            "Иванове",  # PREPOSITIONAL
+            "Иванов",  # NOMINATIVE
+        ]
