@@ -6,16 +6,16 @@ to a given grammatical case. It supports first names, last names and middle name
 gender detection is also available. 
 
 <details>
-  <summary>It is STRONGLY recommended to **use pytrovich version >=0.1.0**</summary>
+  <summary>It is STRONGLY RECOMMENDED to use pytrovich VERSION >=0.1.0</summary>
 
-  3–5× faster lookups via a suffix trie, 800× faster repeated construction via parsed-rules caching, 
+  *3–5× faster lookups via a suffix trie, 800× faster repeated construction via parsed-rules caching,
   deterministic gender output, correct handling of all-caps / Ё / indeclinable names that previously 
   failed silently, and refreshed rules data covering 24 upstream fixes from 2020–2024. 
   Upgrade because the old version returned wrong answers on a non-trivial slice of real Russian 
   names (try make(LASTNAME, MALE, GEN, "ИВАНОВ") or make(FIRSTNAME, MALE, GEN, "Пётр") on both --- 
   the new one is correct, the old one isn't), flapped between gender predictions across runs, 
   and crashed on unknown names; the new one is faster, deterministic, properly typed (py.typed ships), 
-  and benchmarked at >99% accuracy across 270k gold-standard inflections.
+  and benchmarked at >99% accuracy across 270k gold-standard inflections.*
 </details>
 
 [petrovich-java](https://github.com/petrovich/petrovich-java) was the main inspiration.
