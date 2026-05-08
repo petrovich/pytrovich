@@ -129,6 +129,20 @@ class PetrovichDeclinationMaker:
         :return: the inflected form, or the original input unchanged
             if no rule and no exception matched.
         """
+        # name_part validation runs before any case-based dispatch so
+        # buggy callers get a TypeError regardless of which case they
+        # asked for. Putting this after the NOMINATIVE short-circuit
+        # would silently accept a string-or-None name_part whenever
+        # the caller happened to ask for nominative — exactly the kind
+        # of intermittent fall-through this validation exists to
+        # prevent.
+        if name_part not in self._exception_indices:
+            raise TypeError(
+                f"name_part must be a NamePart enum value "
+                f"(NamePart.FIRSTNAME, .LASTNAME, or .MIDDLENAME); "
+                f"got {type(name_part).__name__}={name_part!r}"
+            )
+
         # Nominative is the identity transformation — input is already
         # in nominative form by API contract. Short-circuit before any
         # rule lookup so we never index mods[5] (mods arrays are
@@ -149,19 +163,6 @@ class PetrovichDeclinationMaker:
         # PetrovichGenderDetector.detect.
         lookup_name = original_name.lower()
 
-        # name_part validation. Pre-fix this fell through to
-        # MIDDLENAME silently; calls like make("FIRSTNAME", ...) or
-        # make(None, ...) returned the input unchanged with no
-        # warning. xfail tests in tests/test_known_issues.py pinned
-        # this; with the explicit TypeError those flip to xpass and
-        # the regular tests in TestPetrovichDeclinationMakerKnownIssues
-        # become straight assertions.
-        if name_part not in self._exception_indices:
-            raise TypeError(
-                f"name_part must be a NamePart enum value "
-                f"(NamePart.FIRSTNAME, .LASTNAME, or .MIDDLENAME); "
-                f"got {type(name_part).__name__}={name_part!r}"
-            )
         gender_label = gender.str()
         exception_rule_bean: Rule = self._exception_indices[name_part].find_first_match(
             lookup_name, gender_label

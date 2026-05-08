@@ -144,16 +144,21 @@ class TestPetrovichDeclinationMakerKnownIssues:
     Do NOT delete these tests on fix — convert them to plain assertions.
     """
 
-    def test_string_name_part_raises_type_error(self, maker):
+    @pytest.mark.parametrize("case", list(Case))
+    def test_string_name_part_raises_type_error(self, maker, case):
         # Pre-fix, passing a string literal instead of the NamePart
         # enum silently fell through the dispatch and returned the
         # input unchanged. Now raises TypeError with a hint.
+        # Parametrized over every Case to catch the asymmetric-validation
+        # bug where NOMINATIVE's early-return short-circuited above the
+        # name_part check.
         with pytest.raises(TypeError, match="name_part must be a NamePart"):
-            maker.make("FIRSTNAME", Gender.MALE, Case.GENITIVE, "Иван")
+            maker.make("FIRSTNAME", Gender.MALE, case, "Иван")
 
-    def test_none_name_part_raises_type_error(self, maker):
+    @pytest.mark.parametrize("case", list(Case))
+    def test_none_name_part_raises_type_error(self, maker, case):
         with pytest.raises(TypeError, match="name_part must be a NamePart"):
-            maker.make(None, Gender.MALE, Case.GENITIVE, "Иван")
+            maker.make(None, Gender.MALE, case, "Иван")
 
 
 class TestPetrovichDeclinationMakerCaseNormalization:
