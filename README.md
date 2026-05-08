@@ -60,40 +60,6 @@ E.g. if `pytrovich` fails on `PetrovichDeclinationMaker` creation,
 one may consider downloading `rules.json` directly from 
 [petrovich-rules repo](https://github.com/petrovich/petrovich-rules) as a fix (please create an issue if that actually happens).
 
-## Accuracy
-
-pytrovich is benchmarked against the [petrovich-eval](https://github.com/petrovich/petrovich-eval) datasets, which together contain ~250k gold-standard rows from open Russian dictionaries.
-
-Headline numbers, latest run on master:
-
-| Eval set | Examples | Accuracy |
-|---|---:|---:|
-| Inflection / firstnames | 63,680 | 99.53% |
-| Inflection / surnames | 80,025 | 99.82% |
-| Inflection / midnames | 81,355 | 100.00% |
-| Gender / firstnames | 12,720 | 84.29% |
-| Gender / surnames | 15,474 | 99.83% |
-| Gender / midnames | 16,005 | 100.00% |
-
-To reproduce locally:
-
-```bash
-git submodule update --init --recursive
-python scripts/evaluate.py rules    # all three name parts
-python scripts/evaluate.py gender   # all three name parts
-
-# Just one part, just the small hand-curated subset:
-python scripts/evaluate.py rules --namepart firstnames --subset misc
-
-# Regression mode (this is what CI runs):
-python scripts/evaluate.py rules \
-  --regression-against eval-baseline.rules.json --tolerance 0.5
-```
-
-Per-bucket accuracy is printed and a TSV of every error (lemma, expected, actual) is written to `errors.tsv` / `errors.gender.tsv`. The CI workflow uploads these as artifacts on every run.
-
-The accuracy ceiling is dictated by what the rule-based approach can express; the firstname-gender number in particular is suppressed by short androgynous diminutives (Саша, Женя, etc.) that the library deliberately classifies as `ANDROGYNOUS` rather than guessing.
-
 ### How to cite
 
 Not neccessary, but greatly appreciated, if you use this work.
