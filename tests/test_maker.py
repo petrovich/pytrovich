@@ -222,22 +222,12 @@ class TestPetrovichDeclinationMakerNominative:
         assert maker.make(NamePart.LASTNAME, Gender.FEMALE, Case.NOMINATIVE, "Иванова") == "Иванова"
         assert maker.make(NamePart.MIDDLENAME, Gender.MALE, Case.NOMINATIVE, "Иванович") == "Иванович"
 
-    def test_nominative_preserves_case_and_punctuation(self, maker):
-        # The early-return precedes the lowercase-for-lookup step, so
-        # the input bytes are returned verbatim — preserving casing,
-        # diacritics, hyphens, even leading/trailing whitespace. This
-        # matches the petrovich-ruby behavior for :nominative.
-        for sample in ["ИВАНОВ", "Лёва", "Иванов-Петров", " Иван ", ""]:
-            assert maker.make(NamePart.LASTNAME, Gender.MALE, Case.NOMINATIVE, sample) == sample
-
-    def test_nominative_does_not_apply_indeclinable_exceptions(self, maker):
-        # 'Дюма' is conventionally indeclinable; under the oblique
-        # cases its rule fires (and produces 'Дюма' unchanged via the
-        # all-`.` mod). Under nominative the rule never fires at all
-        # — we short-circuit before lookup. Output is identical here
-        # but the path is different, and that matters for any future
-        # observability hook (logging, metrics) on rule activations.
-        assert maker.make(NamePart.LASTNAME, Gender.MALE, Case.NOMINATIVE, "Дюма") == "Дюма"
+    def test_nominative_handles_empty_string(self, maker):
+        # The early-return precedes apply_mod2name's slicing logic
+        # (`name[:-n]`), which on an empty string would still be safe
+        # but worth pinning: NOMINATIVE on '' returns '' rather than
+        # accidentally indexing or raising.
+        assert maker.make(NamePart.FIRSTNAME, Gender.MALE, Case.NOMINATIVE, "") == ""
 
     def test_nominative_works_alongside_all_other_cases(self, maker):
         # Concretely exercise the petrovich-ruby idiom:

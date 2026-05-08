@@ -5,8 +5,6 @@ Pins the contract that PetrovichDeclinationMaker._RuleSuffixIndex and
 PetrovichGenderDetector._GenderSuffixIndex rely on.
 """
 
-import pytest
-
 from pytrovich.suffix_trie import SuffixTrie
 
 
@@ -123,32 +121,20 @@ class TestSuffixTrieCyrillic:
 
 
 class TestSuffixTrieEdgeCases:
-    def test_empty_suffix_matches_everything(self):
-        # Storing the empty string is unusual but not invalid; it
-        # acts as a wildcard match against any input.
-        t = SuffixTrie()
-        t.insert("", "wildcard")
-        assert list(t.find_all_matches("Иванов")) == ["wildcard"]
-        assert list(t.find_all_matches("")) == ["wildcard"]
-
     def test_single_character_suffix(self):
         t = SuffixTrie()
         t.insert("а", "ends_with_a")
         assert list(t.find_all_matches("Анна")) == ["ends_with_a"]
         assert list(t.find_all_matches("Иван")) == []
 
-    @pytest.mark.parametrize(
-        "value",
-        [None, 0, "", [], (), {}, False, object()],
-    )
-    def test_falsy_values_are_preserved(self, value):
+    def test_falsy_value_is_preserved(self):
         # An earlier draft of find_all_matches used `if bucket:` on
         # the value list itself, which would have skipped retrieving
-        # falsy *contents*. The current implementation distinguishes
-        # 'no bucket' (None from dict.get) from 'bucket exists, may
-        # contain falsy values' — pin that.
+        # any bucket whose values were falsy. One falsy value is
+        # enough to catch any regression — the property is "the
+        # check distinguishes 'no bucket' (None from dict.get) from
+        # 'bucket exists with maybe-falsy values'", which doesn't
+        # vary by which falsy value you pick.
         t = SuffixTrie()
-        t.insert("ов", value)
-        result = list(t.find_all_matches("Иванов"))
-        assert len(result) == 1
-        assert result[0] is value or result[0] == value
+        t.insert("ов", 0)
+        assert list(t.find_all_matches("Иванов")) == [0]

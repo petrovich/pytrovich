@@ -189,7 +189,7 @@ class PetrovichDeclinationMaker:
                 )
 
         if rule_to_use:
-            mod2apply: str = rule_to_use.mods[case_to_use.value]
+            mod2apply: str = rule_to_use.mods[case_to_use]
             result = PetrovichDeclinationMaker.apply_mod2name(mod2apply=mod2apply, name=original_name)
             logger.debug(
                 "applied mod %r to %r → %r (case=%s)",
