@@ -72,11 +72,6 @@ class SuffixTrie:
         ``set()`` or pick a winner by some other criterion.
         """
         node = self._root
-        # An empty stored key would match every input; not used by
-        # pytrovich, but cheap and correct to handle.
-        bucket = node.get(self._TERMINAL)
-        if bucket:
-            yield from bucket
         for ch in reversed(text):
             sub = node.get(ch)
             if sub is None:

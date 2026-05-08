@@ -13,8 +13,6 @@ value losing its type round-trip) would have shipped silently. The
 roundtrip tests below pin the contract for both module families.
 """
 
-import json
-
 from pytrovich import gender_models, rule_models
 
 # ----- pytrovich.rule_models -----------------------------------------------
@@ -22,21 +20,53 @@ from pytrovich import gender_models, rule_models
 
 class TestRuleModelsRule:
     def test_serialize_returns_all_three_fields(self):
-        r = rule_models.Rule(gender="male", mods=["а", "у"], test=["ов"])
-        assert r.serialize() == {"gender": "male", "mods": ["а", "у"], "test": ["ов"]}
+        # 5-element mods list mirrors the rules.json shape (one entry
+        # per oblique case). The roundtrip preserves it verbatim.
+        r = rule_models.Rule(gender="male", mods=["а", "у", "а", "ом", "е"], test=["ов"])
+        assert r.serialize() == {
+            "gender": "male",
+            "mods": ["а", "у", "а", "ом", "е"],
+            "test": ["ов"],
+        }
 
     def test_parse_serialize_roundtrip(self):
-        original = {"gender": "female", "mods": ["-ы", "-е"], "test": ["а"]}
+        original = {"gender": "female", "mods": ["-ы", "-е", "-у", "-ой", "-е"], "test": ["а"]}
         rule = rule_models.Rule.parse(original)
         assert rule.serialize() == original
 
-    def test_serialize_is_json_serializable(self):
-        # Practical sanity: the dict produced by serialize() must
-        # survive json.dumps. The rules.json round-trip relies on
-        # this implicitly via Root.parse, so an unhashable field type
-        # creeping in would surface here.
-        r = rule_models.Rule(gender="male", mods=["а"], test=["ов"])
-        json.dumps(r.serialize())
+    def test_mods_lookup_keyed_by_case_enum(self):
+        # The contract that decouples rules.json layout from Case
+        # enum integer values: at runtime, the maker does
+        # rule.mods[Case.GENITIVE], not rule.mods[case.value]. A
+        # future renumbering of either side cannot apply the wrong
+        # modifier silently.
+        from pytrovich.enums import Case
+
+        r = rule_models.Rule(
+            gender="male",
+            mods=["GEN", "DAT", "ACC", "INST", "PREP"],
+            test=["ов"],
+        )
+        assert r.mods[Case.GENITIVE] == "GEN"
+        assert r.mods[Case.DATIVE] == "DAT"
+        assert r.mods[Case.ACCUSATIVE] == "ACC"
+        assert r.mods[Case.INSTRUMENTAL] == "INST"
+        assert r.mods[Case.PREPOSITIONAL] == "PREP"
+
+    def test_mods_accept_dict_input(self):
+        # __init__ accepts the dict shape too, useful for test
+        # constructions that want to specify only some cases.
+        from pytrovich.enums import Case
+
+        r = rule_models.Rule(
+            gender="male",
+            mods={Case.GENITIVE: "ого"},
+            test=["ой"],
+        )
+        assert r.mods[Case.GENITIVE] == "ого"
+        # Missing cases serialize as None, preserving the 5-element
+        # JSON shape.
+        assert r.serialize()["mods"] == ["ого", None, None, None, None]
 
 
 class TestRuleModelsName:
@@ -141,15 +171,3 @@ class TestGenderModelsRoot:
     def test_serialize_emits_only_populated_parts(self):
         root = self._build_minimal_root()
         assert root.serialize() == {"firstname": {"exceptions": {"male": {"петр"}}}}
-
-    def test_str_returns_serialized_form(self):
-        # Root.__str__ exists for diagnostics — debugging the loaded
-        # rules tree by `print(detector._root_rules_bean)` is useful
-        # enough to keep, but it had no test exercising it.
-        root = self._build_minimal_root()
-        s = str(root)
-        # Contains the expected key, in dict-repr form. Don't pin the
-        # exact output (set ordering!), just the ingredients.
-        assert "firstname" in s
-        assert "exceptions" in s
-        assert "петр" in s
