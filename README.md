@@ -51,6 +51,26 @@ print(maker.make(NamePart.LASTNAME, Gender.MALE, Case.INSTRUMENTAL, "Ивано�
 print(maker.make(NamePart.MIDDLENAME, Gender.FEMALE, Case.DATIVE, "Ивановна"))  # Ивановне
 ```
 
+Inflection follows the canonical
+[petrovich-ruby](https://github.com/petrovich/petrovich-ruby) reference
+semantics, verified row-for-row against the
+[petrovich-eval](https://github.com/petrovich/petrovich-eval) corpus:
+
+* hyphenated double names decline per component
+  (`Салтыков-Щедрин` → dative `Салтыкову-Щедрину`);
+* exception rules match whole words only (the surname `Ельцин` keeps the
+  regular `-ин` declension instead of the `Цин` exception);
+* the optional `known_gender` flag (default `True`) marks the supplied
+  gender as an explicit fact. Pass `known_gender=False` when the gender
+  came out of `PetrovichGenderDetector` to get the Ruby reference's
+  looser detected-gender rule filter:
+
+```python
+gender = detector.detect(lastname="Цой")  # Gender.MALE
+maker.make(NamePart.LASTNAME, gender, Case.DATIVE, "Цой", known_gender=False)  # Цою
+```
+
+
 ### Gender detection
 
 ```python 

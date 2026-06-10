@@ -10,29 +10,14 @@ from pytrovich.suffix_trie import SuffixTrie
 logger = logging.getLogger(__name__)
 
 
-def _pick(candidates):
-    """
-    Deterministically choose one Gender from a non-empty iterable of
-    candidates. Genders are compared by their integer enum values
-    (MALE=0, FEMALE=1, ANDROGYNOUS=2), so a definite gender always
-    wins over ANDROGYNOUS — which matches the existing intent of the
-    surrounding code in detect() and replaces the previous reliance
-    on Python's randomized set iteration order. Tied definite
-    genders fall back to MALE-before-FEMALE; that case only arises
-    in the multi-candidate joined_set branch where one of the two is
-    going to be wrong by definition, and the caller has already
-    logged a WARNING about the ambiguity.
-    """
-    return min(candidates, key=lambda g: g.value)
-
-
 class _GenderSuffixIndex:
     """
     Combines all male / female / androgynous suffix patterns for one
     name part into a single SuffixTrie tagged with the resulting
-    Gender. One traversal yields the set of genders matched, replacing
-    three separate linear scans (one per gender) in the previous
-    implementation.
+    Gender. Insertion order is androgynous → male → female, matching
+    petrovich-ruby's GENDERS constant, so that when the same suffix
+    string appears under two genders the tie resolves the same way the
+    Ruby implementation's stable ordering does.
     """
 
     __slots__ = ("_trie",)
@@ -41,15 +26,21 @@ class _GenderSuffixIndex:
         self._trie = SuffixTrie()
         suffixes = name_obj.suffixes if name_obj is not None else None
         if suffixes is not None:
+            for s in suffixes.andro or ():
+                self._trie.insert(s, Gender.ANDROGYNOUS)
             for s in suffixes.male or ():
                 self._trie.insert(s, Gender.MALE)
             for s in suffixes.female or ():
                 self._trie.insert(s, Gender.FEMALE)
-            for s in suffixes.andro or ():
-                self._trie.insert(s, Gender.ANDROGYNOUS)
 
-    def detect_genders(self, str_name: str) -> set:
-        return set(self._trie.find_all_matches(str_name))
+    def detect_longest(self, str_name: str):
+        """
+        Gender of the LONGEST suffix matching *str_name*, or None.
+        petrovich-ruby's find_gender_rule sorts suffix rules by
+        descending length and takes the first match — i.e. the longest
+        matching suffix decides the gender.
+        """
+        return self._trie.find_longest_match(str_name)
 
 
 @lru_cache(maxsize=8)
@@ -95,28 +86,59 @@ class PetrovichGenderDetector:
             ) from e
 
     @staticmethod
-    def _check_against_exceptions(name: Name, str_name: str) -> set:
-        results = []
+    def _exception_gender(name: Name, str_name: str):
+        """
+        Exact (whole-word) exception lookup for one hyphen-free name
+        component. Returns a Gender or None.
 
-        if name.exceptions and name.exceptions.male and str_name in name.exceptions.male:
-            results.append(Gender.MALE)
-        if name.exceptions and name.exceptions.female and str_name in name.exceptions.female:
-            results.append(Gender.FEMALE)
-        if name.exceptions and name.exceptions.andro and str_name in name.exceptions.andro:
-            results.append(Gender.ANDROGYNOUS)
-        return set(results)
+        petrovich-ruby builds a hash keyed by the exception string,
+        filled in GENDERS order (androgynous, male, female), so for a
+        string listed under more than one gender the LAST write wins.
+        Checking female → male → androgynous here is equivalent.
+        """
+        if name is None or not name.exceptions:
+            return None
+        exceptions = name.exceptions
+        if exceptions.female and str_name in exceptions.female:
+            return Gender.FEMALE
+        if exceptions.male and str_name in exceptions.male:
+            return Gender.MALE
+        if exceptions.andro and str_name in exceptions.andro:
+            return Gender.ANDROGYNOUS
+        return None
+
+    def _detect_part(self, part_key: str, value: str) -> Gender:
+        """
+        Gender contributed by one whole name part, which may be
+        hyphenated. As in petrovich-ruby, each hyphen-separated
+        component is resolved independently (exact exception first,
+        then longest matching suffix) and the LAST component's result
+        is taken; a component with no match counts as ANDROGYNOUS.
+        """
+        name_bean = getattr(self._root_rules_bean, part_key)
+        index = self._suffix_indices[part_key]
+        result = Gender.ANDROGYNOUS
+        for component in value.split("-"):
+            gender = self._exception_gender(name_bean, component)
+            if gender is None:
+                gender = index.detect_longest(component)
+            result = gender if gender is not None else Gender.ANDROGYNOUS
+        return result
 
     def detect(self, firstname=None, lastname=None, middlename=None):
         """
         Predict the grammatical gender of the supplied name parts.
 
         At least one of the three keyword arguments must be non-empty.
-        When more than one is given the parts cross-check each other:
-        a confident middlename answer wins outright (patronymics are
+        When more than one is given the parts cross-check each other,
+        following petrovich-ruby's Petrovich::Gender: a confident
+        middlename answer wins outright (patronymics are
         gender-specific by construction); otherwise a definite
-        firstname/lastname gender beats an ANDROGYNOUS one. Truly
-        ambiguous combinations log a WARNING and return a
-        deterministic best guess.
+        firstname/lastname gender beats an ANDROGYNOUS one. A genuine
+        male-vs-female conflict logs a WARNING and returns
+        ANDROGYNOUS (where the Ruby reference returns nil).
+        Hyphenated components are resolved independently and the last
+        component decides, again as in the Ruby reference.
 
         :param firstname: first name (Иван, Анна, …). Optional.
         :param lastname: last name / surname (Иванов, Иванова, …). Optional.
@@ -152,55 +174,23 @@ class PetrovichGenderDetector:
         if middlename is not None:
             middlename = middlename.lower()
 
-        results_middlename, results_firstname, results_lastname = set([]), set([]), set([])
-
-        if middlename:
-            results_middlename.update(
-                self._check_against_exceptions(self._root_rules_bean.middlename, middlename)
-            )
-            results_middlename.update(self._suffix_indices["middlename"].detect_genders(middlename))
-            logger.debug("middlename %r matched %s", middlename, results_middlename)
-
-            # Middlename is the strongest signal: Russian patronymics
-            # are gender-specific by construction (Иванович vs
-            # Ивановна). If matching produced any definite gender,
-            # take it and stop. Previously this used next(iter(...))
-            # twice and could mis-fire on ANDROGYNOUS even when a
-            # definite match was also present, by picking ANDRO first.
-            non_andro = results_middlename - {Gender.ANDROGYNOUS}
-            if non_andro:
-                return _pick(non_andro)
-
-        if firstname:
-            results_firstname.update(
-                self._check_against_exceptions(self._root_rules_bean.firstname, firstname)
-            )
-            results_firstname.update(self._suffix_indices["firstname"].detect_genders(firstname))
-            logger.debug("firstname %r matched %s", firstname, results_firstname)
-
+        per_part = {}
+        # Insertion order matches petrovich-ruby's Petrovich::Gender:
+        # lastname, firstname, middlename.
         if lastname:
-            results_lastname.update(self._check_against_exceptions(self._root_rules_bean.lastname, lastname))
-            results_lastname.update(self._suffix_indices["lastname"].detect_genders(lastname))
-            logger.debug("lastname %r matched %s", lastname, results_lastname)
+            per_part["lastname"] = self._detect_part("lastname", lastname)
+        if firstname:
+            per_part["firstname"] = self._detect_part("firstname", firstname)
+        if middlename:
+            per_part["middlename"] = self._detect_part("middlename", middlename)
+        logger.debug("per-part genders: %s", per_part)
 
-        if firstname and lastname:
-            if results_firstname and results_lastname:
-                fn, ln = _pick(results_firstname), _pick(results_lastname)
-                if fn != Gender.ANDROGYNOUS and ln == Gender.ANDROGYNOUS:
-                    return fn
-                if ln != Gender.ANDROGYNOUS and fn == Gender.ANDROGYNOUS:
-                    return ln
-
-        joined_set = results_firstname.union(results_middlename).union(results_lastname)
-
-        if not joined_set:
-            # No rule and no exception matched any of the supplied name
-            # parts. Per the canonical Ruby reference implementation
+        if not per_part:
+            # Only empty strings were supplied — nothing to match.
+            # Per the canonical Ruby reference implementation
             # (Petrovich.detect_gender('блаблабла') => :androgynous,
             # documented at rubydoc.info/gems/petrovich), the contract
-            # is to return ANDROGYNOUS rather than raise. Previously
-            # this path fell through to next(iter(empty_set)), which
-            # raised StopIteration — Issue #6.
+            # is to return ANDROGYNOUS rather than raise.
             logger.debug(
                 "no rule matched for firstname=%r lastname=%r middlename=%r — returning ANDROGYNOUS",
                 firstname,
@@ -209,22 +199,50 @@ class PetrovichGenderDetector:
             )
             return Gender.ANDROGYNOUS
 
-        if len(joined_set) == 1:
-            return _pick(joined_set)
+        middlename_gender = per_part.get("middlename")
+        if middlename_gender is not None and middlename_gender != Gender.ANDROGYNOUS:
+            # Middlename is the strongest signal: Russian patronymics
+            # are gender-specific by construction (Иванович vs
+            # Ивановна). A definite middlename answer wins outright.
+            return middlename_gender
 
-        # Multiple candidates from different name parts — _pick
-        # deterministically prefers a definite gender over
-        # ANDROGYNOUS (and falls back to MALE-before-FEMALE when
-        # both are definite, an inherently uncertain case the
-        # caller can recover from via the WARNING below).
+        distinct = set(per_part.values())
+        firstname_gender = per_part.get("firstname")
+        lastname_gender = per_part.get("lastname")
+        if len(distinct) > 1:
+            # A definite firstname/lastname beats an ANDROGYNOUS
+            # counterpart (Саша Иванов → MALE). Note `x == ANDROGYNOUS`
+            # is False when x is None (part not supplied), which is
+            # exactly the guard petrovich-ruby's nil gets for free.
+            if (
+                firstname_gender is not None
+                and firstname_gender != Gender.ANDROGYNOUS
+                and lastname_gender == Gender.ANDROGYNOUS
+            ):
+                return firstname_gender
+            if (
+                lastname_gender is not None
+                and lastname_gender != Gender.ANDROGYNOUS
+                and firstname_gender == Gender.ANDROGYNOUS
+            ):
+                return lastname_gender
+
+        if len(distinct) == 1:
+            return next(iter(distinct))
+
+        # Parts disagree with no androgynous side to defer to (e.g. a
+        # female-looking firstname against a male-looking lastname).
+        # petrovich-ruby returns nil here; pytrovich's contract is a
+        # total function, so map that to ANDROGYNOUS — the same
+        # totalization Issue #6 established for the no-match case.
         logger.warning(
-            "gender prediction ambiguous for firstname=%r lastname=%r middlename=%r — candidates: %s",
+            "gender prediction ambiguous for firstname=%r lastname=%r middlename=%r — per-part: %s",
             firstname,
             lastname,
             middlename,
-            joined_set,
+            per_part,
         )
-        return _pick(joined_set)
+        return Gender.ANDROGYNOUS
 
 
 if __name__ == "__main__":

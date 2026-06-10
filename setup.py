@@ -7,7 +7,7 @@ with open("README.md", encoding="utf-8") as fh:
 setup(
     name="pytrovich",
     packages=setuptools.find_packages(exclude=("tests", "tests.*")),
-    version="0.1.0",
+    version="0.2.0",
     description="pytrovich: a Python port of an inflector for Russian anthroponyms developed by petrovich team: "
     "https://github.com/petrovich",
     long_description=long_description,
