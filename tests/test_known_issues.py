@@ -11,7 +11,9 @@ coverage.
 
 Issues covered (as of last update):
 
-  * Issue #2 — Hyphenated lastname support
+  * Issue #2 — Hyphenated lastname support. Resolved: make() splits on
+    hyphens and inflects each component, like petrovich-ruby; tests
+    below pin the contract against regression.
     https://github.com/petrovich/pytrovich/issues/2
 
   * Issue #6 — PetrovichGenderDetector.detect should return
@@ -63,27 +65,15 @@ class TestIssue2HyphenatedLastnames:
         nasty with exceptions, including Бонч-Бруевич, Мамин-Сибиряк,
         Муравьёв-Апостол.
 
-    Current behavior (verified on master at the time of writing): the
-    suffix rule is applied once to the whole hyphenated string, so only
-    the trailing component looks inflected. For "Петров-Водкин" in the
-    genitive case, the library returns "Петров-Водкина" instead of the
-    expected "Петрова-Водкина".
+    RESOLVED: make() now splits on hyphens and inflects each component
+    with its own rule, matching petrovich-ruby's Inflector#inflect.
+    "Петров-Водкин" in the genitive correctly becomes
+    "Петрова-Водкина".
 
-    The tests below split into two parametrized groups:
-
-      * "simple" hyphenated names from the issue body — naive
-        split-and-inflect would yield correct output. The expected value
-        is computed by inflecting each part through the maker
-        individually, so the assertion does not require the test author
-        to be a Russian-morphology expert.
-
-      * "exception" cases the issue calls out as nasty. For example,
-        "Бонч" is conventionally indeclinable, so the linguistically
-        correct genitive of "Бонч-Бруевич" is "Бонч-Бруевича" — *not*
-        the "Бонча-Бруевича" that naive split-and-inflect produces.
-        These tests assert the linguistically-correct outcome and will
-        require both a hyphen-splitting fix AND rules-data updates
-        (additional indeclinable exceptions) to pass.
+    The "nasty" exception cases also come out right, for the right
+    reason: "бонч" is an explicit indeclinable exception in
+    petrovich-rules, and exceptions are matched per hyphen-component,
+    so "Бонч-Бруевич" declines only on the second component.
     """
 
     SIMPLE_HYPHENATED_NAMES_FROM_ISSUE = [
@@ -110,26 +100,19 @@ class TestIssue2HyphenatedLastnames:
         ],
     )
     @pytest.mark.parametrize("lastname", SIMPLE_HYPHENATED_NAMES_FROM_ISSUE)
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "Issue #2: hyphenated lastnames are not split before the "
-            "suffix rule is applied; only the trailing component looks "
-            "inflected. The expected behavior is the 'naive' split-and-"
-            "inflect-each from the issue body."
-        ),
-    )
     def test_simple_hyphenated_inflects_each_part(
         self,
         maker,
         lastname,
         case_to_use,
     ):
-        # The library already knows how to inflect the individual parts
-        # of these names. The bug is purely in not splitting on hyphens.
-        # Compute the expected output by running each part through the
-        # library separately and rejoining — this is the exact "naive
-        # code" approach the issue describes.
+        # Issue #2 is fixed: make() splits on hyphens and inflects each
+        # component with its own rule, as petrovich-ruby's
+        # Inflector#inflect does. (Formerly xfail(strict=True);
+        # converted to a plain assertion per this module's policy.)
+        # The expected output is computed by running each part through
+        # the library separately and rejoining — the exact "naive code"
+        # approach the issue describes.
         parts = lastname.split("-")
         expected = "-".join(maker.make(NamePart.LASTNAME, Gender.MALE, case_to_use, p) for p in parts)
         actual = maker.make(NamePart.LASTNAME, Gender.MALE, case_to_use, lastname)
@@ -147,20 +130,12 @@ class TestIssue2HyphenatedLastnames:
         case_to_use,
         expected,
     ):
-        # Subtle case: this test is *not* marked xfail. The library
-        # currently produces the linguistically correct output for these
-        # names — but for the wrong reason. Because the bug only inflects
-        # the trailing component, and "Бонч" is conventionally
-        # indeclinable in Russian (so only the trailing component
-        # *should* inflect), the buggy code coincidentally matches the
-        # correct grammar.
-        #
-        # The value of this test is forward-looking: when a naive
-        # hyphen-splitting fix for Issue #2 lands without an accompanying
-        # "Бонч is indeclinable" rules-data exception, the output will
-        # change to "Бонча-Бруевича" (wrong) and this assertion will
-        # fail, alerting the maintainer that the rules-data side of the
-        # issue is still pending.
+        # With hyphen splitting in place this output is now correct for
+        # the right reason: "бонч" hits the indeclinable lastname
+        # exception in petrovich-rules (matched per component), so only
+        # "Бруевич" declines. Before the fix the same string came out
+        # only because the whole-string suffix lookup happened to touch
+        # just the trailing component.
         actual = maker.make(NamePart.LASTNAME, gender, case_to_use, lastname)
         assert actual == expected
 

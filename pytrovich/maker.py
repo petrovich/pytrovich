@@ -11,6 +11,32 @@ from pytrovich.suffix_trie import SuffixTrie
 logger = logging.getLogger(__name__)
 
 _ANDROGYNOUS_LABEL = Gender.ANDROGYNOUS.str()
+_FEMALE_LABEL = Gender.FEMALE.str()
+
+
+def _gender_matches(rule_gender: str, match_gender: str, known_gender: bool) -> bool:
+    """
+    petrovich-ruby's Case::Rule#match? gender filter
+    (lib/petrovich/case/rule.rb).
+
+    When the gender is *known* (explicitly supplied by the caller) the
+    rule's gender must equal it exactly — in particular, androgynous
+    rules do NOT apply to a known male/female name on the first pass;
+    they are only reachable through the androgynous fallback pass in
+    _inflect_piece.
+
+    When the gender was *detected* (known_gender=False) the filter is
+    asymmetric: female rules apply only to female targets, and
+    non-female (male or androgynous) rules apply only to non-female
+    targets.
+    """
+    if known_gender:
+        return rule_gender == match_gender
+    if rule_gender != _FEMALE_LABEL and match_gender == _FEMALE_LABEL:
+        return False
+    if rule_gender == _FEMALE_LABEL and match_gender != _FEMALE_LABEL:
+        return False
+    return True
 
 
 class _RuleSuffixIndex:
@@ -35,11 +61,12 @@ class _RuleSuffixIndex:
             for test in rule.test:
                 self._trie.insert(test, index)
 
-    def find_first_match(self, name: str, gender_label: str) -> Optional[Rule]:
+    def find_first_match(self, name: str, gender_label: str, known_gender: bool) -> Optional[Rule]:
         """
         Return the Rule with the lowest registration-order index that
         (a) has a test value matching as a suffix of *name* and
-        (b) has gender == gender_label or gender == 'androgynous'.
+        (b) passes the Ruby gender filter for *gender_label* /
+            *known_gender* (see _gender_matches).
         Returns None if no such rule exists.
         """
         best_index = None
@@ -47,10 +74,43 @@ class _RuleSuffixIndex:
         for index in self._trie.find_all_matches(name):
             if best_index is not None and index >= best_index:
                 continue
-            rule_gender = rules[index].gender
-            if rule_gender == gender_label or rule_gender == _ANDROGYNOUS_LABEL:
+            if _gender_matches(rules[index].gender, gender_label, known_gender):
                 best_index = index
         return rules[best_index] if best_index is not None else None
+
+
+class _RuleExactIndex:
+    """
+    Whole-word lookup for *exception* rules.
+
+    petrovich-ruby anchors exception tests at both ends (the regexp it
+    builds is ``^лев$``), so the first-name exception ``лев`` never
+    fires for Королев, and the 2024-rules exception ``алия`` never
+    fires for Наталия. Matching exceptions through the SuffixTrie (as
+    suffixes) reproduced exactly those mis-fires — e.g. Ельцин hit the
+    lastname exception ``цин`` and declined to Ельцином instead of
+    Ельциным.
+    """
+
+    __slots__ = ("_rules", "_by_word")
+
+    def __init__(self, rules):
+        self._rules = list(rules) if rules else []
+        self._by_word = {}
+        for index, rule in enumerate(self._rules):
+            for test in rule.test:
+                self._by_word.setdefault(test, []).append(index)
+
+    def find_first_match(self, name: str, gender_label: str, known_gender: bool) -> Optional[Rule]:
+        """
+        Same contract as _RuleSuffixIndex.find_first_match, except a
+        rule's test must equal *name* exactly (whole-word match).
+        """
+        for index in self._by_word.get(name, ()):
+            rule = self._rules[index]
+            if _gender_matches(rule.gender, gender_label, known_gender):
+                return rule
+        return None
 
 
 @lru_cache(maxsize=8)
@@ -75,7 +135,7 @@ def _load_and_index_rules(path_to_rules_file: str):
         ("middlename", NamePart.MIDDLENAME),
     ):
         name_bean = getattr(root, part_attr)
-        exception_indices[part_enum] = _RuleSuffixIndex(name_bean.exceptions if name_bean else None)
+        exception_indices[part_enum] = _RuleExactIndex(name_bean.exceptions if name_bean else None)
         suffix_indices[part_enum] = _RuleSuffixIndex(name_bean.suffixes if name_bean else None)
     return root, exception_indices, suffix_indices
 
@@ -108,7 +168,14 @@ class PetrovichDeclinationMaker:
                 f"from petrovich-rules upstream."
             ) from e
 
-    def make(self, name_part: NamePart, gender: Gender, case_to_use: Case, original_name: str) -> str:
+    def make(
+        self,
+        name_part: NamePart,
+        gender: Gender,
+        case_to_use: Case,
+        original_name: str,
+        known_gender: bool = True,
+    ) -> str:
         """
         Inflect *original_name* into the requested grammatical case.
 
@@ -125,7 +192,17 @@ class PetrovichDeclinationMaker:
             petrovich-ruby.
         :param original_name: the name in nominative form. Lookup is
             case-insensitive (lowercased internally for matching), but
-            the original casing is preserved in the output.
+            the original casing is preserved in the output. Hyphenated
+            double names (Салтыков-Щедрин, Анна-Мария) are split and
+            each component is inflected with its own rule, matching
+            petrovich-ruby's Inflector#inflect.
+        :param known_gender: True (default) when *gender* is an
+            explicit fact supplied by the caller; pass False when it
+            came out of PetrovichGenderDetector. Mirrors
+            petrovich-ruby's known_gender? flag: a known gender
+            restricts rules to that exact gender, a detected one uses
+            the looser female / non-female filter. Either way it
+            applies only to the final hyphen-separated component.
         :return: the inflected form, or the original input unchanged
             if no rule and no exception matched.
         """
@@ -150,56 +227,94 @@ class PetrovichDeclinationMaker:
         if case_to_use == Case.NOMINATIVE:
             return original_name
 
-        result = original_name
+        # petrovich-ruby splits double (hyphenated) names and inflects
+        # each component with its own rule — Салтыков-Щедрин declines
+        # on both sides (Салтыкову-Щедрину), and the indeclinable
+        # exception Бонч still holds in Бонч-Бруевич. A known gender
+        # counts as known only for the final component, mirroring
+        # Petrovich::Inflector#inflect.
+        pieces = original_name.split("-")
+        last_index = len(pieces) - 1
+        return "-".join(
+            self._inflect_piece(
+                name_part,
+                gender,
+                case_to_use,
+                piece,
+                known_gender and index == last_index,
+            )
+            for index, piece in enumerate(pieces)
+        )
 
+    def _inflect_piece(
+        self,
+        name_part: NamePart,
+        gender: Gender,
+        case_to_use: Case,
+        piece: str,
+        known_gender: bool,
+    ) -> str:
+        """
+        Inflect one hyphen-free component of a name.
+
+        Rule resolution follows petrovich-ruby's RuleSet#find_case_rule:
+        the combined rule list is exceptions (in file order) followed
+        by suffixes (in file order); the first rule that passes the
+        gender filter and whose test matches wins. Exceptions match the
+        whole word, suffixes match the ending. If nothing matched, a
+        second pass runs with an androgynous, not-known gender — which,
+        per _gender_matches, admits male and androgynous rules but not
+        female ones. Because every exception precedes every suffix in
+        the combined order, 'first match over the combined list' is
+        exactly 'exception match if any, else suffix match'.
+        """
         # Lowercase for rule lookup. The rules data uses lowercase
         # throughout (suffix tests like 'ов', 'ская'; exception names
         # like 'пётр'), so without this an input like 'ИВАНОВ' would
         # fail the suffix match and silently return unchanged, and
         # 'Пётр' would miss the explicit Ё→Е alternation exception.
-        # original_name is preserved for apply_mod2name below so the
-        # output's case matches the input's: 'Иван' → 'Ивана', not
+        # *piece* keeps its original casing for apply_mod2name below so
+        # the output's case matches the input's: 'Иван' → 'Ивана', not
         # 'Иван' → 'ивана'. Mirrors the same treatment in
         # PetrovichGenderDetector.detect.
-        lookup_name = original_name.lower()
-
+        lookup_name = piece.lower()
         gender_label = gender.str()
-        exception_rule_bean: Rule = self._exception_indices[name_part].find_first_match(
-            lookup_name, gender_label
+
+        rule_to_use: Optional[Rule] = (
+            self._exception_indices[name_part].find_first_match(lookup_name, gender_label, known_gender)
+            or self._suffix_indices[name_part].find_first_match(lookup_name, gender_label, known_gender)
+            or self._exception_indices[name_part].find_first_match(lookup_name, _ANDROGYNOUS_LABEL, False)
+            or self._suffix_indices[name_part].find_first_match(lookup_name, _ANDROGYNOUS_LABEL, False)
         )
-        suffix_rule_bean: Rule = self._suffix_indices[name_part].find_first_match(lookup_name, gender_label)
 
-        if exception_rule_bean and exception_rule_bean.gender == gender.str():
-            rule_to_use: Rule = exception_rule_bean
-            logger.debug("using exception rule for %r: %s", original_name, rule_to_use)
-        elif suffix_rule_bean and suffix_rule_bean.gender == gender.str():
-            rule_to_use: Rule = suffix_rule_bean
-            logger.debug("using suffix rule for %r: %s", original_name, rule_to_use)
-        else:
-            rule_to_use: Rule = exception_rule_bean if exception_rule_bean else suffix_rule_bean
-            if rule_to_use is None:
-                # No rule matched — name passes through unchanged. This is
-                # frequently a silent miss (foreign names, typos); log so
-                # callers running with DEBUG can spot why a name didn't
-                # decline.
-                logger.debug(
-                    "no rule matched for %r (name_part=%s, gender=%s)",
-                    original_name,
-                    name_part,
-                    gender,
-                )
-
-        if rule_to_use:
-            mod2apply: str = rule_to_use.mods[case_to_use]
-            result = PetrovichDeclinationMaker.apply_mod2name(mod2apply=mod2apply, name=original_name)
+        if rule_to_use is None:
+            # No rule matched — the component passes through unchanged.
+            # This is frequently a silent miss (foreign names, typos);
+            # log so callers running with DEBUG can spot why a name
+            # didn't decline.
             logger.debug(
-                "applied mod %r to %r → %r (case=%s)",
-                mod2apply,
-                original_name,
-                result,
-                case_to_use,
+                "no rule matched for %r (name_part=%s, gender=%s)",
+                piece,
+                name_part,
+                gender,
             )
+            return piece
 
+        logger.debug(
+            "selected rule for %r: gender=%s, test=%s",
+            piece,
+            rule_to_use.gender,
+            rule_to_use.test,
+        )
+        mod2apply: str = rule_to_use.mods[case_to_use]
+        result = PetrovichDeclinationMaker.apply_mod2name(mod2apply=mod2apply, name=piece)
+        logger.debug(
+            "applied mod %r to %r → %r (case=%s)",
+            mod2apply,
+            piece,
+            result,
+            case_to_use,
+        )
         return result
 
     @staticmethod

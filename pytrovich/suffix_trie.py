@@ -80,3 +80,26 @@ class SuffixTrie:
             bucket = node.get(self._TERMINAL)
             if bucket:
                 yield from bucket
+
+    def find_longest_match(self, text: str):
+        """
+        Return the first-inserted value stored under the LONGEST key
+        that is a suffix of *text*, or None if no key matches.
+
+        This is the lookup petrovich-ruby's RuleSet#find_gender_rule
+        performs: gender suffixes are sorted by descending length
+        ("accuracy") and the first match wins, so the longest matching
+        suffix decides; ties on equal-length (i.e. identical) suffixes
+        resolve by insertion order.
+        """
+        node = self._root
+        found = None
+        for ch in reversed(text):
+            sub = node.get(ch)
+            if sub is None:
+                break
+            node = sub
+            bucket = node.get(self._TERMINAL)
+            if bucket:
+                found = bucket[0]
+        return found

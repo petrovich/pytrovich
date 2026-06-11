@@ -53,7 +53,6 @@ from pytrovich.maker import PetrovichDeclinationMaker
 # (genitive), дт = дательный (dative), вн = винительный (accusative),
 # тв = творительный (instrumental), пр = предложный (prepositional).
 # The '0' marker means aptotic (indeclinable in all cases).
-GRAMMEME_TO_GENDER = {"мр": Gender.MALE, "жр": Gender.FEMALE}
 GRAMMEME_TO_CASE = {
     # NOMINATIVE is the identity transformation in pytrovich (added
     # to match petrovich-ruby's :nominative semantics). Including it
@@ -152,14 +151,16 @@ def evaluate_rules(namepart_filename: str, subset: str | None, errors_path: Path
         word = row["word"]
         grammemes = (row.get("grammemes") or "").split(",")
 
-        # Gender is required to invoke the inflector. Files always
-        # carry one of мр / жр on every row.
-        gender = next(
-            (GRAMMEME_TO_GENDER[g] for g in grammemes if g in GRAMMEME_TO_GENDER),
-            None,
-        )
-        if gender is None:
-            continue
+        # Gender for the inflector call, mapped exactly as petrovich-
+        # ruby's evaluate.rake does: a row is inflected as MALE iff its
+        # grammemes contain 'мр'; everything else — including the
+        # androgynous 'мр-жр' rows this script previously skipped — is
+        # inflected as FEMALE. Forcing androgynous rows through the
+        # female rules is the stricter convention the Ruby reference
+        # reports its accuracy under, and adopting it makes the totals
+        # directly comparable (the skip silently dropped ~5k surname
+        # checks).
+        gender = Gender.MALE if "мр" in grammemes else Gender.FEMALE
 
         if "0" in grammemes:
             # Aptotic: every case must equal the lemma. The Ruby task

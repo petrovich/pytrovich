@@ -1,14 +1,14 @@
 {
-  "female:accusative": 99.9144811858609,
-  "female:dative": 99.83846446218168,
-  "female:genitive": 99.86221968833144,
-  "female:instrumental": 99.78620296465223,
+  "female:accusative": 99.91313888634909,
+  "female:dative": 99.86285087318278,
+  "female:genitive": 99.83999268537991,
+  "female:instrumental": 99.84456432294047,
   "female:nominative": 100.0,
-  "female:prepositional": 99.83846446218168,
-  "male:accusative": 99.79969954932399,
-  "male:dative": 99.79552662326824,
-  "male:genitive": 99.79969954932399,
-  "male:instrumental": 99.62860958103822,
+  "female:prepositional": 99.86285087318278,
+  "male:accusative": 99.54515105992321,
+  "male:dative": 99.54097813386747,
+  "male:genitive": 99.54515105992321,
+  "male:instrumental": 99.44917376064096,
   "male:nominative": 99.99582707394426,
-  "male:prepositional": 99.78718077115674
+  "male:prepositional": 99.53263228175598
 }

@@ -78,11 +78,11 @@ class TestPetrovichDeclinationMakerCoverage:
         # still ends in 'н' so the rule applies, yielding lowercase output.
         assert maker.make(NamePart.FIRSTNAME, Gender.MALE, Case.GENITIVE, "иван") == "ивана"
 
-    def test_hyphenated_lastname_inflects_only_trailing_component(self, maker):
-        # The library does not split hyphenated surnames; it applies the
-        # suffix rule once to the whole string, which means only the
-        # trailing component looks inflected.
-        assert maker.make(NamePart.LASTNAME, Gender.MALE, Case.GENITIVE, "Иванов-Петров") == "Иванов-Петрова"
+    def test_hyphenated_lastname_inflects_each_component(self, maker):
+        # Hyphenated surnames are split and each component declines
+        # with its own rule (Issue #2; matches petrovich-ruby's
+        # Inflector#inflect).
+        assert maker.make(NamePart.LASTNAME, Gender.MALE, Case.GENITIVE, "Иванов-Петров") == "Иванова-Петрова"
 
     def test_name_with_yo_letter(self, maker):
         # Russian morphology shifts 'ё' to 'е' in oblique cases of 'Пётр'
@@ -208,9 +208,10 @@ class TestPetrovichDeclinationMakerCaseNormalization:
 
     def test_hyphenated_uppercase_inflects(self, maker):
         # Pre-fix, the all-caps form fell through unchanged because
-        # the suffix rule was case-sensitive. Now it inflects, with
-        # the original case preserved on the unmodified portion.
-        assert maker.make(NamePart.LASTNAME, Gender.MALE, Case.GENITIVE, "ИВАНОВ-ПЕТРОВ") == "ИВАНОВ-ПЕТРОВа"
+        # the suffix rule was case-sensitive. Now both components
+        # inflect, with the original case preserved on the unmodified
+        # portions.
+        assert maker.make(NamePart.LASTNAME, Gender.MALE, Case.GENITIVE, "ИВАНОВ-ПЕТРОВ") == "ИВАНОВа-ПЕТРОВа"
 
 
 class TestPetrovichDeclinationMakerNominative:

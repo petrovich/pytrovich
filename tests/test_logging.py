@@ -67,35 +67,29 @@ class TestLoggingBehavior:
     """
 
     def test_ambiguous_gender_emits_warning(self, detector, caplog):
-        # 'иона' is in firstname.exceptions.androgynous AND ends in -а
-        # which matches a female firstname suffix, so
-        # results_firstname always contains both {ANDROGYNOUS, FEMALE}.
-        # With no middlename or lastname supplied, no
-        # firstname+lastname conflict-resolution branch fires;
-        # joined_set has length 2 and the WARNING-emitting else branch
-        # runs.
+        # A genuine male-vs-female conflict: 'Иван' is a male first
+        # name, 'Иванова' a female surname. Neither side is
+        # ANDROGYNOUS, so the definite-beats-androgynous branch cannot
+        # resolve it and the WARNING-emitting fallback runs (returning
+        # ANDROGYNOUS, as petrovich-ruby returns nil here).
         with caplog.at_level(logging.WARNING, logger="pytrovich.detector"):
-            detector.detect(firstname="иона")
+            detector.detect(firstname="Иван", lastname="Иванова")
         warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
         assert any("ambiguous" in r.getMessage().lower() for r in warnings), (
             f"expected an ambiguity warning, got {[r.getMessage() for r in warnings]}"
         )
 
     def test_detect_is_deterministic_under_ambiguity(self, detector):
-        # Regression test for the next(iter(set)) → _pick refactor.
-        # Before the fix, multi-candidate paths returned whichever
-        # gender Python's hash randomization picked first, so the
-        # answer for ambiguous inputs flapped between processes
-        # (different PYTHONHASHSEED values). Now the picker prefers
-        # the lowest enum value, which keeps a definite gender over
-        # ANDROGYNOUS — matching the surrounding code's intent — and
-        # makes the output stable across runs.
+        # 'иона' is listed in firstname.exceptions.androgynous AND ends
+        # in -а like many female names. Per petrovich-ruby's
+        # find_gender_rule, the whole-word exception is consulted
+        # before any suffix, so the explicit ANDROGYNOUS entry decides
+        # — deterministically, with no dependence on set iteration
+        # order. (The pre-Ruby-parity behavior unioned exception and
+        # suffix matches and picked FEMALE.)
         from pytrovich.enums import Gender
 
-        # Single-firstname ambiguity (results = {ANDROGYNOUS, FEMALE}).
-        # Pre-fix this could return either; post-fix it always
-        # returns FEMALE (value 1 < ANDROGYNOUS value 2).
-        assert detector.detect(firstname="иона") == Gender.FEMALE
+        assert detector.detect(firstname="иона") == Gender.ANDROGYNOUS
 
     def test_make_emits_debug_trace(self, maker, caplog):
         # Sanity: when DEBUG is enabled, make() narrates which rule
