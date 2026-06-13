@@ -132,7 +132,10 @@ class TestGenderDetectionRubySemantics:
         assert detector.detect(firstname="Саша", lastname="Иванов") == Gender.MALE
 
     def test_confident_patronymic_wins(self, detector):
-        assert detector.detect(firstname="Саша", lastname="Андрейчук", middlename="Олегович") == Gender.MALE
+        assert (
+            detector.detect(firstname="Саша", lastname="Андрейчук", middlename="Олегович")
+            == Gender.MALE
+        )
 
     def test_hyphenated_part_resolves_on_last_component(self, detector):
         assert detector.detect(middlename="Мухаммад-кызы") == Gender.FEMALE
